@@ -1659,20 +1659,30 @@ def test_rejecting_a_job_keeps_it_and_only_asks_about_its_files(page):
 def test_deleting_a_sent_job_leaves_the_weekly_count_alone(page):
     """Sends are history: rejecting or deleting a job must not undo one."""
     enter_profile(page)
-    created = api_post(
-        page, "/api/applications", {"company": "Sent Co", "role": "Engineer"}
-    )
-    assert created["status"] == 201
-    app_id = created["body"]["id"]
-    page.reload()
-    enter_profile_after_reload(page)
 
     def total():
         return page.inner_text("#stat-grid .stat-card .stat-value")
 
     def weekly():
         # The ring prints "1" and "<small>/10</small>", so the text has a newline.
-        return page.inner_text('#goal-list [data-goal="weekly_goal"] .goal-ring-value').replace("\n", "")
+        return page.inner_text('#goal-list [data-goal="weekly_goal"] .goal-ring-value').replace(
+            "\n", ""
+        )
+
+    def reload_with_data():
+        """Reload and wait for the profile's jobs: the shell appears before they do."""
+        page.reload()
+        enter_profile_after_reload(page)
+        page.click('[data-tab="applied"]')
+        page.wait_for_selector("#applied-table-body tr")
+        page.click('[data-tab="overview"]')
+
+    created = api_post(
+        page, "/api/applications", {"company": "Sent Co", "role": "Engineer"}
+    )
+    assert created["status"] == 201
+    app_id = created["body"]["id"]
+    reload_with_data()
 
     assert total() == "1"
     assert weekly().split("/")[0] == "1"
@@ -1693,6 +1703,7 @@ def test_deleting_a_sent_job_leaves_the_weekly_count_alone(page):
         "() => document.querySelector('#goal-list [data-goal=\"daily_goal\"]"
         " .goal-ring-value').textContent.replace(/\\s+/g, '') === '2/3'"
     )
+    page.click('[data-tab="overview"]')
     assert total() == "2"
 
     def call(method, path, payload=None):
@@ -1711,20 +1722,19 @@ def test_deleting_a_sent_job_leaves_the_weekly_count_alone(page):
 
     # A rejection is a stage change, and the send still happened.
     assert call("PATCH", "/api/applications/%d" % app_id, {"status": "rejected"}) == 200
-    page.reload()
-    enter_profile_after_reload(page)
+    reload_with_data()
     assert total() == "2"
     assert weekly().split("/")[0] == "2"
 
     # Gone for good, and still counted.
     assert call("DELETE", "/api/applications/%d" % app_id) == 200
     assert call("DELETE", "/api/applications/%d?permanent=1" % app_id) == 200
-    page.reload()
-    enter_profile_after_reload(page)
+    reload_with_data()
     page.click('[data-tab="applied"]')
     page.wait_for_selector("#applied-table-body tr")
     # One job left on the list, two applications sent.
     assert page.locator("#applied-table-body tr").count() == 1
+    page.click('[data-tab="overview"]')
     assert total() == "2"
     assert weekly().split("/")[0] == "2"
 
