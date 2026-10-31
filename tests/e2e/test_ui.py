@@ -1656,6 +1656,79 @@ def test_rejecting_a_job_keeps_it_and_only_asks_about_its_files(page):
     assert page.locator("#applied-table-body .stage-select").first.input_value() == "rejected"
 
 
+def test_deleting_a_sent_job_leaves_the_weekly_count_alone(page):
+    """Sends are history: rejecting or deleting a job must not undo one."""
+    enter_profile(page)
+    created = api_post(
+        page, "/api/applications", {"company": "Sent Co", "role": "Engineer"}
+    )
+    assert created["status"] == 201
+    app_id = created["body"]["id"]
+    page.reload()
+    enter_profile_after_reload(page)
+
+    def total():
+        return page.inner_text("#stat-grid .stat-card .stat-value")
+
+    def weekly():
+        # The ring prints "1" and "<small>/10</small>", so the text has a newline.
+        return page.inner_text('#goal-list [data-goal="weekly_goal"] .goal-ring-value').replace("\n", "")
+
+    assert total() == "1"
+    assert weekly().split("/")[0] == "1"
+
+    # Sending a saved job counts at once, without a reload.
+    assert api_post(
+        page,
+        "/api/applications",
+        {"company": "Saved Co", "role": "Engineer", "phase": "to_apply"},
+    )["status"] == 201
+    page.reload()
+    enter_profile_after_reload(page)
+    page.click('[data-tab="to_apply"]')
+    page.wait_for_selector("#toapply-table-body tr")
+    page.check("#select-all-toapply")
+    page.click("#bulk-apply")
+    page.wait_for_function(
+        "() => document.querySelector('#goal-list [data-goal=\"daily_goal\"]"
+        " .goal-ring-value').textContent.replace(/\\s+/g, '') === '2/3'"
+    )
+    assert total() == "2"
+
+    def call(method, path, payload=None):
+        return page.evaluate(
+            """async ({ method, path, payload }) => {
+                const session = await (await fetch('/api/session')).json();
+                const response = await fetch(path, {
+                  method: method,
+                  headers: {'Content-Type': 'application/json', 'X-Api-Token': session.token},
+                  body: payload ? JSON.stringify(payload) : undefined,
+                });
+                return response.status;
+              }""",
+            {"method": method, "path": path, "payload": payload},
+        )
+
+    # A rejection is a stage change, and the send still happened.
+    assert call("PATCH", "/api/applications/%d" % app_id, {"status": "rejected"}) == 200
+    page.reload()
+    enter_profile_after_reload(page)
+    assert total() == "2"
+    assert weekly().split("/")[0] == "2"
+
+    # Gone for good, and still counted.
+    assert call("DELETE", "/api/applications/%d" % app_id) == 200
+    assert call("DELETE", "/api/applications/%d?permanent=1" % app_id) == 200
+    page.reload()
+    enter_profile_after_reload(page)
+    page.click('[data-tab="applied"]')
+    page.wait_for_selector("#applied-table-body tr")
+    # One job left on the list, two applications sent.
+    assert page.locator("#applied-table-body tr").count() == 1
+    assert total() == "2"
+    assert weekly().split("/")[0] == "2"
+
+
 def test_job_document_preview_and_download_on_a_locked_profile(page):
     """A preview opened with a bare URL came back "This profile is locked"."""
     enter_profile(page)

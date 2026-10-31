@@ -2,7 +2,7 @@
    ES module, no build step. Open the dashboard through server.py. */
 
 import { $, $$, DOC_LABEL, api, esc, formatSize, state, statusSelectOptions, toast, todayISO } from "./core.js";
-import { promptRejectFiles, updateLocal } from "./data.js";
+import { promptRejectFiles, refreshSent, updateLocal } from "./data.js";
 import { closeDrawer, openDrawer } from "./drawer.js";
 import { setPanelNote } from "./io.js";
 import { render, setTab, syncDatalists } from "./workspace.js";
@@ -151,6 +151,7 @@ export async function submitForm(event) {
       toast(saved.phase === "to_apply" ? "Job saved to apply" : "Application added");
     }
     updateLocal(saved);
+    refreshSent();
     closeModal();
     if (state.drawerId === saved.id) openDrawer(saved.id);
     if (state.tab === "overview" || state.tab === "trash") {

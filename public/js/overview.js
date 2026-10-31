@@ -1,7 +1,7 @@
 /* Jobby — The Overview tab: stats, goals, streak, charts and reminders.
    ES module, no build step. Open the dashboard through server.py. */
 
-import { $, CLOSED, DAY_NAMES, DEFAULT_GOALS, ICON, STATUSES, dayDiff, daysSince, dueLabel, esc, fmtDate, fmtShortDate, isOverdue, isoOf, needsReview, startOfDay, startOfWeek, state, toast, todayISO } from "./core.js";
+import { $, CLOSED, DAY_NAMES, DEFAULT_GOALS, ICON, STATUSES, dayDiff, daysSince, dueLabel, esc, fmtDate, fmtShortDate, isOverdue, isoOf, needsReview, sentByDay, startOfDay, startOfWeek, state, toast, todayISO } from "./core.js";
 import { appsIn, computeStats, weeklyBuckets } from "./data.js";
 
 
@@ -11,7 +11,7 @@ export function renderOverview() {
     {
       label: "Total",
       value: stats.total,
-      foot: stats.total ? "Since " + fmtDate(oldestApplicationDate()) : "No applications yet",
+      foot: stats.total ? "Sent since " + fmtDate(oldestApplicationDate()) : "No applications sent yet",
       tone: "var(--accent)",
     },
     {
@@ -29,13 +29,13 @@ export function renderOverview() {
     {
       label: "Offers",
       value: stats.offers,
-      foot: stats.total ? Math.round((stats.offers / stats.total) * 100) + "% of applications" : "Keep going",
+      foot: stats.onList ? Math.round((stats.offers / stats.onList) * 100) + "% of applications" : "Keep going",
       tone: "var(--st-offer)",
     },
     {
       label: "Response rate",
       value: stats.responseRate + "<small>%</small>",
-      foot: stats.replied + " of " + stats.total + " got a reply",
+      foot: stats.replied + " of " + stats.onList + " got a reply",
       tone: "var(--st-screening)",
     },
     {
@@ -61,7 +61,7 @@ export function renderOverview() {
   if (stats.followUps) parts.push(stats.followUps + " follow-up" + (stats.followUps === 1 ? "" : "s") + " due");
   if (stats.reviewCount) parts.push(stats.reviewCount + " need" + (stats.reviewCount === 1 ? "s" : "") + " review");
   if (stats.toApply) parts.push(stats.toApply + " saved to apply");
-  if (!stats.total && !stats.toApply) parts.length = 0;
+  if (!stats.total && !stats.onList && !stats.toApply) parts.length = 0;
   $("#overview-sub").textContent =
     parts.length ? parts.join(" · ") : "Add your first job to get started.";
 
@@ -210,11 +210,8 @@ export function renderStreak(stats) {
 
 
 export function oldestApplicationDate() {
-  const dates = appsIn("applied")
-    .map((app) => app.applied_on)
-    .filter(Boolean)
-    .sort();
-  return dates[0] || todayISO();
+  const days = Array.from(sentByDay().keys()).sort();
+  return days[0] || todayISO();
 }
 
 

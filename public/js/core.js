@@ -85,6 +85,7 @@ export const state = {
   previewUrl: null,
   goalProgress: null,
   settings: Object.assign({}, DEFAULT_GOALS),
+  sent: null,
   profiles: [],
   profileId: null,
   unlockId: null,
@@ -152,13 +153,39 @@ export function startOfWeek(date) {
 }
 
 
-export function appliedDays() {
-  const days = new Set();
+/* Applications sent, per day. The server keeps this list, so deleting a job or
+   moving it to another stage cannot make a past application look unsent. Until
+   that list has arrived, the jobs on screen are the best answer there is. */
+export function sentByDay() {
+  const counts = new Map();
+  if (state.sent && state.sent.days) {
+    Object.keys(state.sent.days).forEach((day) => {
+      const count = Number(state.sent.days[day]) || 0;
+      if (count > 0) counts.set(day, count);
+    });
+    return counts;
+  }
   state.apps.forEach((app) => {
     if (app.phase === "to_apply" || !app.applied_on) return;
-    days.add(String(app.applied_on).slice(0, 10));
+    const day = String(app.applied_on).slice(0, 10);
+    counts.set(day, (counts.get(day) || 0) + 1);
   });
-  return days;
+  return counts;
+}
+
+
+export function sentTotal() {
+  if (state.sent && state.sent.days) return Number(state.sent.total) || 0;
+  let total = 0;
+  sentByDay().forEach((count) => {
+    total += count;
+  });
+  return total;
+}
+
+
+export function appliedDays() {
+  return new Set(sentByDay().keys());
 }
 
 

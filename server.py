@@ -119,6 +119,15 @@ CREATE TABLE IF NOT EXISTS status_events (
     created_at     TEXT NOT NULL
 );
 
+/* Every application that was actually sent, on the day it went out. There is
+   deliberately no foreign key: deleting a job cleans up the list, but it cannot
+   un-send an application, and the goals and the streak are about sending. */
+CREATE TABLE IF NOT EXISTS sent_log (
+    application_id INTEGER PRIMARY KEY,
+    profile_id     INTEGER NOT NULL DEFAULT 1,
+    sent_on        TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS documents (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
@@ -165,6 +174,7 @@ CREATE INDEX IF NOT EXISTS idx_docs_app ON documents(application_id);
 CREATE INDEX IF NOT EXISTS idx_resumes_profile ON resumes(profile_id);
 CREATE INDEX IF NOT EXISTS idx_resumes_app ON resumes(application_id);
 CREATE INDEX IF NOT EXISTS idx_resume_files ON resume_files(resume_id);
+CREATE INDEX IF NOT EXISTS idx_sent_profile ON sent_log(profile_id, sent_on);
 """
 
 DEFAULT_PROFILE_NAME = "Personal"
@@ -379,6 +389,60 @@ def migrate(conn):
         conn.execute("ALTER TABLE settings_new RENAME TO settings")
 
 
+def sent_day(value):
+    return str(value or "").strip()[:10]
+
+
+def record_sent(conn, profile_id, app_id, sent_on):
+    """Note that an application went out, on the day it went out.
+
+    The row is keyed by the application so nothing is counted twice, and it is
+    updated rather than added to so correcting a date moves the count to the
+    right day instead of leaving it behind.
+    """
+    day = sent_day(sent_on) or today_iso()
+    conn.execute(
+        "INSERT INTO sent_log (application_id, profile_id, sent_on) VALUES (?, ?, ?)"
+        " ON CONFLICT(application_id) DO UPDATE SET"
+        " profile_id = excluded.profile_id, sent_on = excluded.sent_on",
+        (app_id, profile_id, day),
+    )
+
+
+def forget_sent(conn, app_id):
+    """A correction, not a cleanup: the job was never actually sent."""
+    conn.execute("DELETE FROM sent_log WHERE application_id = ?", (app_id,))
+
+
+def backfill_sent_log(conn):
+    """Seed the ledger from the applied jobs an older database already holds."""
+    conn.execute(
+        "INSERT OR IGNORE INTO sent_log (application_id, profile_id, sent_on)"
+        " SELECT id, profile_id, substr("
+        "COALESCE(NULLIF(applied_on, ''), created_at), 1, 10)"
+        " FROM applications WHERE phase != 'to_apply'"
+    )
+
+
+def sent_counts(db_path, profile_id):
+    """Applications sent per day, and how many were sent in all."""
+    conn = connect(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT sent_on, COUNT(*) AS sent FROM sent_log WHERE profile_id = ?"
+            " GROUP BY sent_on ORDER BY sent_on ASC",
+            (profile_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+    days = {}
+    total = 0
+    for row in rows:
+        days[row["sent_on"]] = row["sent"]
+        total += row["sent"]
+    return {"total": total, "days": days}
+
+
 def init_db(db_path):
     if db_path != ":memory:":
         parent = os.path.dirname(os.path.abspath(db_path))
@@ -387,8 +451,18 @@ def init_db(db_path):
     conn = connect(db_path)
     try:
         conn.execute("PRAGMA journal_mode = WAL")
+        # A database from before the ledger has jobs whose applications were sent
+        # but never recorded; fill those in once, when the table first appears.
+        fresh_ledger = (
+            conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sent_log'"
+            ).fetchone()
+            is None
+        )
         conn.executescript(SCHEMA)
         migrate(conn)
+        if fresh_ledger:
+            backfill_sent_log(conn)
         conn.commit()
     finally:
         conn.close()
@@ -680,6 +754,7 @@ def delete_profile(db_path, profile_id):
         )
         conn.execute("DELETE FROM resumes WHERE profile_id = ?", (profile_id,))
         conn.execute("DELETE FROM applications WHERE profile_id = ?", (profile_id,))
+        conn.execute("DELETE FROM sent_log WHERE profile_id = ?", (profile_id,))
         conn.execute("DELETE FROM settings WHERE profile_id = ?", (profile_id,))
         conn.execute("DELETE FROM profiles WHERE id = ?", (profile_id,))
         conn.commit()
@@ -1004,6 +1079,8 @@ def create_application(db_path, profile_id, data):
             " VALUES (?, ?, ?, ?)",
             (app_id, None, data["status"], stamp),
         )
+        if data.get("phase", "applied") != "to_apply":
+            record_sent(conn, profile_id, app_id, data.get("applied_on") or stamp)
         conn.commit()
         row = conn.execute("SELECT * FROM applications WHERE id = ?", (app_id,)).fetchone()
         return app_dict(row)
@@ -1043,8 +1120,13 @@ def update_application(db_path, profile_id, app_id, data):
                 " VALUES (?, ?, ?, ?)",
                 (app_id, current["status"], new_status, stamp),
             )
-        conn.commit()
         row = conn.execute("SELECT * FROM applications WHERE id = ?", (app_id,)).fetchone()
+        if row["phase"] == "to_apply":
+            # Back to the saved list: it was never sent after all.
+            forget_sent(conn, app_id)
+        else:
+            record_sent(conn, profile_id, app_id, row["applied_on"] or stamp)
+        conn.commit()
         return app_dict(row)
     finally:
         conn.close()
@@ -1090,6 +1172,14 @@ def restore_application(db_path, profile_id, app_id):
         conn.execute(
             "UPDATE applications SET deleted_at = NULL, updated_at = ? WHERE id = ?",
             (stamp, app_id),
+        )
+        # A job trashed before the ledger existed still counts as sent.
+        conn.execute(
+            "INSERT OR IGNORE INTO sent_log (application_id, profile_id, sent_on)"
+            " SELECT id, profile_id, substr("
+            "COALESCE(NULLIF(applied_on, ''), created_at), 1, 10)"
+            " FROM applications WHERE id = ? AND phase != 'to_apply'",
+            (app_id,),
         )
         conn.commit()
         updated = conn.execute(
@@ -2345,6 +2435,10 @@ def import_applications(db_path, profile_id, items, force=False):
                 " VALUES (?, ?, ?, ?)",
                 (cursor.lastrowid, None, data["status"], stamp),
             )
+            if data.get("phase", "applied") != "to_apply":
+                record_sent(
+                    conn, profile_id, cursor.lastrowid, data.get("applied_on") or stamp
+                )
             known.setdefault(key, cursor.lastrowid)
             imported += 1
         conn.commit()
@@ -2872,6 +2966,15 @@ class Handler(BaseHTTPRequestHandler):
                         raise ApiError(405, "Method not allowed")
                     return self.send_json(start_engine_install())
                 raise ApiError(404, "Unknown endpoint")
+
+            if parts[0] == "sent":
+                # Applications sent, per day. Kept apart from the job rows so that
+                # deleting one cannot make it look like it was never sent.
+                if len(parts) != 1:
+                    raise ApiError(404, "Unknown endpoint")
+                if self.command != "GET":
+                    raise ApiError(405, "Method not allowed")
+                return self.send_json(sent_counts(self.db_path, profile_id))
 
             if parts[0] != "applications" and parts[0] != "import":
                 raise ApiError(404, "Unknown endpoint")

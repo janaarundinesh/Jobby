@@ -1,7 +1,7 @@
 /* Jobby — Loading, filtering and mutating data (jobs, documents, bulk actions).
    ES module, no build step. Open the dashboard through server.py. */
 
-import { $, CLOSED, DEFAULT_GOALS, DOC_LABEL, MAX_UPLOAD, STATUSES, STATUS_LABEL, api, appliedDays, bestStreak, currentStreak, dayDiff, download, fetchFile, isoOf, matchPct, needsReview, parseDateOnly, startOfDay, startOfWeek, state, toast, todayISO, tokenFor } from "./core.js";
+import { $, CLOSED, DEFAULT_GOALS, DOC_LABEL, MAX_UPLOAD, STATUSES, STATUS_LABEL, api, appliedDays, bestStreak, currentStreak, dayDiff, download, fetchFile, isoOf, matchPct, needsReview, parseDateOnly, sentByDay, sentTotal, startOfDay, startOfWeek, state, toast, todayISO, tokenFor } from "./core.js";
 import { askReplace, chooseSavedFile, confirmAction } from "./dialogs.js";
 import { closeDrawer, openDrawer } from "./drawer.js";
 import { openUnlock } from "./profiles.js";
@@ -20,6 +20,7 @@ export async function loadApps() {
     // Nothing is fetched for a locked profile: the server would refuse it.
     state.apps = [];
     state.trash = [];
+    state.sent = null;
     state.settings = Object.assign({}, DEFAULT_GOALS);
     state.loading = false;
     render();
@@ -33,19 +34,37 @@ export async function loadApps() {
       api("/api/applications"),
       api("/api/applications?trash=1"),
       api("/api/settings"),
+      api("/api/sent"),
     ]);
     state.apps = Array.isArray(results[0]) ? results[0] : [];
     state.trash = Array.isArray(results[1]) ? results[1] : [];
     state.settings = Object.assign({}, DEFAULT_GOALS, results[2] || {});
+    state.sent = results[3] && results[3].days ? results[3] : null;
   } catch (error) {
     toast(error.message, true);
     state.apps = [];
     state.trash = [];
+    state.sent = null;
   } finally {
     state.loading = false;
     render();
     // A reminder is due once a day, whatever opened the dashboard.
     maybeNotify();
+  }
+}
+
+
+/* Sends are kept on the server precisely so that deleting a job cannot rewrite
+   them, which means the app has to ask again after anything that sends one
+   rather than guessing the new count from the list it can see. */
+export async function refreshSent() {
+  try {
+    const sent = await api("/api/sent");
+    if (!sent || !sent.days) return;
+    state.sent = sent;
+    render();
+  } catch (error) {
+    // Keep the last numbers rather than dropping the goals back to zero.
   }
 }
 
@@ -120,9 +139,15 @@ export function sortApps(list, sort) {
 }
 
 
+/* The numbers on the Overview, from two different questions: how many jobs are
+   on the list (Active, Offers, Response rate) and how many applications were
+   ever sent (Total, goals, streak). Deleting a job answers the first and must
+   not answer the second. */
 export function computeStats() {
   const applied = appsIn("applied");
-  const total = applied.length;
+  const onList = applied.length;
+  const sent = sentByDay();
+  const total = sentTotal();
   const byStatus = STATUSES.reduce((acc, status) => {
     acc[status.key] = 0;
     return acc;
@@ -134,8 +159,8 @@ export function computeStats() {
   const active = byStatus.applied + byStatus.screening + byStatus.interview;
   const interviews = byStatus.interview + byStatus.offer;
   const offers = byStatus.offer;
-  const replied = total - byStatus.applied - byStatus.withdrawn;
-  const responseRate = total ? Math.round((Math.max(replied, 0) / total) * 100) : 0;
+  const replied = onList - byStatus.applied - byStatus.withdrawn;
+  const responseRate = onList ? Math.round((Math.max(replied, 0) / onList) * 100) : 0;
   const followUps = applied.filter((app) => {
     if (!app.next_step_on || CLOSED.includes(app.status)) return false;
     const diff = dayDiff(app.next_step_on);
@@ -145,15 +170,14 @@ export function computeStats() {
   const days = appliedDays();
   const today = todayISO();
   const monday = isoOf(startOfWeek(new Date()));
-  const todayCount = applied.filter(
-    (app) => String(app.applied_on || "").slice(0, 10) === today
-  ).length;
-  const weekCount = applied.filter((app) => {
-    const sent = String(app.applied_on || "").slice(0, 10);
-    return sent && sent >= monday && sent <= today;
-  }).length;
+  const todayCount = sent.get(today) || 0;
+  let weekCount = 0;
+  sent.forEach((count, day) => {
+    if (day >= monday && day <= today) weekCount += count;
+  });
   return {
     total,
+    onList,
     byStatus,
     active,
     interviews,
@@ -185,11 +209,11 @@ export function weeklyBuckets() {
     end.setDate(start.getDate() + 6);
     weeks.push({ start, end, count: 0 });
   }
-  appsIn("applied").forEach((app) => {
-    const applied = parseDateOnly(app.applied_on);
+  sentByDay().forEach((count, day) => {
+    const applied = parseDateOnly(day);
     if (!applied) return;
     const bucket = weeks.find((week) => applied >= week.start && applied <= week.end);
-    if (bucket) bucket.count += 1;
+    if (bucket) bucket.count += count;
   });
   return weeks;
 }
@@ -258,6 +282,7 @@ export async function patchApplication(id, payload, successMessage, options) {
     if (state.drawerId === id) openDrawer(id);
     if (successMessage) toast(successMessage);
     if (!options || options.promptReject !== false) promptRejectFiles(updated, previous);
+    refreshSent();
     return updated;
   } catch (error) {
     toast(error.message, true);
@@ -550,6 +575,7 @@ function offerUndo(message, isError, changes) {
           onClick: async () => {
             const result = await patchEach(changes);
             render();
+            refreshSent();
             if (result.failed) {
               toast("Could not undo every job — " + result.failed + " failed", true);
               return;
@@ -599,6 +625,7 @@ export async function bulkMarkApplied() {
   state.selection.clear();
   button.disabled = false;
   render();
+  refreshSent();
   offerUndo(
     done + " job" + (done === 1 ? "" : "s") + " marked as applied" +
       (failed ? " — " + failed + " failed" : ""),

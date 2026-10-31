@@ -140,6 +140,78 @@ def test_soft_delete_restore_and_purge(api):
     assert api.get("/api/applications/%d" % app_id).status == 404
 
 
+def test_sent_applications_outlive_the_job(api):
+    """Deleting a job cannot un-send it: the goals read what was sent.
+
+    Rejecting or deleting an application is tidying up a list; the application
+    still went out that day, so the weekly count and the streak must not fall.
+    """
+    created = api.create(company="Acme", role="Engineer", applied_on="2026-10-28")
+    assert api.get("/api/sent").data == {"total": 1, "days": {"2026-10-28": 1}}
+
+    api.patch("/api/applications/%d" % created["id"], {"status": "rejected"})
+    assert api.get("/api/sent").data == {"total": 1, "days": {"2026-10-28": 1}}
+
+    api.delete("/api/applications/%d" % created["id"])
+    assert api.get("/api/sent").data == {"total": 1, "days": {"2026-10-28": 1}}
+    api.delete("/api/applications/%d?permanent=1" % created["id"])
+    assert api.get("/api/sent").data == {"total": 1, "days": {"2026-10-28": 1}}
+
+
+def test_sent_counts_only_what_was_sent(api):
+    api.create(company="Saved", role="Engineer", phase="to_apply")
+    assert api.get("/api/sent").data == {"total": 0, "days": {}}
+
+    created = api.create(company="Acme", role="Engineer", applied_on="2026-10-28")
+    # Correcting the date moves the send rather than adding a second one.
+    api.patch("/api/applications/%d" % created["id"], {"applied_on": "2026-10-30"})
+    assert api.get("/api/sent").data == {"total": 1, "days": {"2026-10-30": 1}}
+
+    # Back on the saved list means it was never sent after all.
+    api.patch("/api/applications/%d" % created["id"], {"phase": "to_apply"})
+    assert api.get("/api/sent").data == {"total": 0, "days": {}}
+
+
+def test_imported_sends_are_counted(api):
+    response = api.post(
+        "/api/import",
+        {
+            "applications": [
+                {
+                    "company": "Sent Co",
+                    "role": "Engineer",
+                    "status": "Applied",
+                    "applied_on": "2026-10-27",
+                },
+                {"company": "Saved Co", "role": "Engineer"},
+            ]
+        },
+    )
+    assert response.status == 200
+    assert api.get("/api/sent").data == {"total": 1, "days": {"2026-10-27": 1}}
+
+
+def test_an_older_database_backfills_its_sends(api):
+    """A database from before the ledger keeps the applications it already has."""
+    created = api.create(company="Acme", role="Engineer", applied_on="2026-10-28")
+    api.create(company="Saved", role="Engineer", phase="to_apply")
+    db_path = api.tmp_path / "tracker.db"
+
+    conn = server.connect(str(db_path))
+    try:
+        conn.execute("DROP TABLE sent_log")
+        conn.commit()
+    finally:
+        conn.close()
+
+    server.init_db(str(db_path))
+    assert server.sent_counts(str(db_path), 1) == {"total": 1, "days": {"2026-10-28": 1}}
+    # Reopening a database that already has the ledger does not seed it twice.
+    server.init_db(str(db_path))
+    assert server.sent_counts(str(db_path), 1) == {"total": 1, "days": {"2026-10-28": 1}}
+    assert created["id"]
+
+
 def test_purge_removes_documents_and_files(api):
     created = api.create()
     app_id = created["id"]
