@@ -41,23 +41,25 @@ def enter_profile_after_reload(page):
     """A reload lands in one of two places; step in only if asked who you are.
 
     The app remembers the profile in this tab, so a reload either goes straight
-    back into it or opens the picker. Which one is not known until the app has
-    booted, and asking too early answers "neither" - an is_visible() asked while
-    the app is still loading says no for both screens, and the click that follows
-    then waits for a dashboard that is never coming. So wait for a screen that is
-    *ready*: the picker with a profile to enter, or a tab strip to click. A failure
-    here says what the app was showing instead, because the only place this race
-    has been seen is a slower machine, where a timeout says nothing.
+    back into it or opens the picker, and which one is only settled once boot()
+    has the profile list. Asking earlier answers "neither": the page's own markup
+    is gated (html.is-welcome) until then, and an is_visible() asked in that
+    window says no for both screens, so the click that follows waits out its
+    thirty seconds for a dashboard that is never coming. The gate going down, or
+    the picker drawing its cards, is that decision - so wait for one of those,
+    then look at which screen is on. A failure says what the app was showing
+    instead, because the only place this race has been seen is a slower machine,
+    where a bare timeout says nothing.
     """
     try:
         page.wait_for_function(
             """() => {
-                 const welcome = document.querySelector('#welcome');
-                 const picker = welcome && !welcome.hidden &&
-                   document.querySelector('#welcome-list [data-enter-profile]');
-                 const tab = document.querySelector('[data-tab="overview"]');
-                 const dashboard = tab && tab.getBoundingClientRect().width > 0;
-                 return Boolean(picker || dashboard);
+                 if (document.documentElement.classList.contains('is-welcome')) {
+                   return Boolean(
+                     document.querySelector('#welcome-list [data-enter-profile]')
+                   );
+                 }
+                 return true;
                }""",
             timeout=15000,
         )
@@ -1567,6 +1569,11 @@ def test_uploading_into_a_taken_slot_offers_to_replace(page):
     page.click(".replace-ok")
     page.wait_for_function(
         "() => document.querySelector('#toasts').textContent.includes('Replaced the resume with cv-v2.pdf')"
+    )
+    # The toast lands before the drawer repaints, so wait for the drawer to name
+    # the new file rather than reading it once and hoping it is already there.
+    page.wait_for_function(
+        "() => document.querySelector('#drawer').textContent.includes('cv-v2.pdf')"
     )
     page.wait_for_function("() => document.querySelectorAll('#drawer .doc-name').length === 1")
     assert "cv-v2.pdf" in page.inner_text("#drawer")
