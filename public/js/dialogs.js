@@ -2,7 +2,7 @@
    ES module, no build step. Open the dashboard through server.py. */
 
 import { $, $$, DOC_LABEL, api, esc, formatSize, state, statusSelectOptions, toast, todayISO } from "./core.js";
-import { promptRejectDelete, updateLocal } from "./data.js";
+import { promptRejectFiles, updateLocal } from "./data.js";
 import { closeDrawer, openDrawer } from "./drawer.js";
 import { setPanelNote } from "./io.js";
 import { render, setTab, syncDatalists } from "./workspace.js";
@@ -156,7 +156,7 @@ export async function submitForm(event) {
     if (state.tab === "overview" || state.tab === "trash") {
       setTab(saved.phase === "to_apply" ? "to_apply" : "applied");
     }
-    promptRejectDelete(saved, previous);
+    promptRejectFiles(saved, previous);
   } catch (submitError) {
     error.textContent = submitError.message;
     error.classList.remove("is-warning");
@@ -653,6 +653,7 @@ export function confirmAction(config) {
       document.body.classList.remove("no-scroll");
     }
   };
+  fragment.querySelector(".confirm-cancel").textContent = config.cancelLabel || "Cancel";
   fragment.querySelector(".confirm-cancel").addEventListener("click", cleanup);
   backdrop.addEventListener("click", (event) => {
     if (event.target === backdrop) cleanup();

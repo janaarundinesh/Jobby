@@ -1588,6 +1588,74 @@ def test_uploading_into_a_taken_slot_offers_to_replace(page):
     page.wait_for_function("() => document.querySelectorAll('#drawer .doc-name').length === 2")
 
 
+def wait_for_drawer_timeline(page, label):
+    """Wait until the drawer's second render, the one with the new timeline.
+
+    The drawer paints once from what the app already knows and again when its
+    fetch comes back, so a stage picked in between lands on a <select> that is
+    about to be replaced. The timeline entry only exists after that second
+    render, which makes it the signal that the drawer has settled.
+    """
+    page.wait_for_function(
+        "(label) => Array.from(document.querySelectorAll('#drawer .timeline-label'))"
+        ".some((item) => item.textContent.includes(label))",
+        arg=label,
+    )
+
+
+def test_rejecting_a_job_keeps_it_and_only_asks_about_its_files(page):
+    """Rejected is a stage, not a delete: the job stays, its files are a question."""
+    enter_profile(page)
+    assert api_post(
+        page,
+        "/api/applications",
+        {"company": "Nope Co", "role": "Engineer", "status": "screening"},
+    )["status"] == 201
+    page.reload()
+    enter_profile_after_reload(page)
+    page.click('[data-tab="applied"]')
+    page.wait_for_selector("#applied-table-body tr")
+
+    page.locator("#applied-table-body tr").first.click()
+    page.wait_for_selector("#drawer:not([hidden])")
+    page.set_input_files(
+        '#drawer [data-doc-kind="resume"]',
+        {"name": "nope-cv.pdf", "mimeType": "application/pdf", "buffer": b"%PDF-1.4 rejected"},
+    )
+    page.wait_for_selector("#drawer .doc-name")
+
+    # The question names the file and offers to keep it.
+    page.select_option("[data-drawer-status]", "rejected")
+    page.wait_for_selector(".confirm-backdrop")
+    assert "Delete the file for this application?" in page.inner_text(".confirm-title")
+    assert "nope-cv.pdf" in page.inner_text(".confirm-text")
+    page.click(".confirm-backdrop .confirm-cancel")
+    page.wait_for_selector(".confirm-backdrop", state="detached")
+    wait_for_drawer_timeline(page, "Screening → Rejected")
+
+    # Keep file: the job is still there, rejected, with its resume attached.
+    assert page.inner_text("#drawer .status-pill") == "Rejected"
+    assert page.locator("#drawer .doc-name").count() == 1
+    assert page.locator("#count-applied").inner_text() == "1"
+
+    # Off rejected and back, this time taking the file away.
+    page.select_option("[data-drawer-status]", "withdrawn")
+    wait_for_drawer_timeline(page, "Rejected → Withdrawn")
+    page.select_option("[data-drawer-status]", "rejected")
+    page.wait_for_selector(".confirm-backdrop")
+    page.click(".confirm-backdrop .confirm-ok")
+    page.wait_for_selector("#drawer .doc-empty")
+
+    # The application outlives its files.
+    assert page.locator("#drawer .doc-name").count() == 0
+    assert page.locator("#count-applied").inner_text() == "1"
+    page.reload()
+    enter_profile_after_reload(page)
+    page.click('[data-tab="applied"]')
+    page.wait_for_selector("#applied-table-body tr")
+    assert page.locator("#applied-table-body .stage-select").first.input_value() == "rejected"
+
+
 def test_job_document_preview_and_download_on_a_locked_profile(page):
     """A preview opened with a bare URL came back "This profile is locked"."""
     enter_profile(page)

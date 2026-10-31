@@ -257,7 +257,7 @@ export async function patchApplication(id, payload, successMessage, options) {
     updateLocal(updated);
     if (state.drawerId === id) openDrawer(id);
     if (successMessage) toast(successMessage);
-    if (!options || options.promptReject !== false) promptRejectDelete(updated, previous);
+    if (!options || options.promptReject !== false) promptRejectFiles(updated, previous);
     return updated;
   } catch (error) {
     toast(error.message, true);
@@ -718,26 +718,44 @@ export function updateBulkBar(list) {
 }
 
 
-export function promptRejectDelete(updated, previous) {
+/* Being turned down is a stage, not a deletion: the application keeps its place
+   in Applied so the history stays honest. Only the files tailored to it are
+   worth clearing, and that is a question for the user — never a clean-up the
+   app does on its own. */
+export async function promptRejectFiles(updated, previous) {
   if (!updated || !previous) return;
   if (updated.status !== "rejected" || previous.status === "rejected") return;
   if (updated.phase === "to_apply") return;
+  let documents = [];
+  try {
+    const detail = await api("/api/applications/" + updated.id);
+    documents = detail && Array.isArray(detail.documents) ? detail.documents : [];
+  } catch (error) {
+    // The application is already saved as rejected; nothing to offer here.
+    return;
+  }
+  // Nothing attached, so nothing to ask about.
+  if (!documents.length) return;
+  const one = documents.length === 1;
+  const names = documents.map((doc) => doc.filename).join(", ");
   confirmAction({
-    title: "Delete rejected application?",
+    title: one ? "Delete the file for this application?" : "Delete the files for this application?",
     text:
-      updated.company + " — " + updated.role +
-      " is now marked rejected. Delete it together with its resume, cover letter and any other attached files?" +
-      " Its notes and timeline are removed from the database too, and this cannot be undone." +
-      " Cancel keeps the job in Applied as rejected.",
-    okLabel: "Delete job and files",
+      updated.company + " — " + updated.role + " is now marked rejected." +
+      " Delete " + (one ? names : "its " + documents.length + " attached files (" + names + ")") +
+      "? The application, its notes and timeline stay in Applied either way.",
+    okLabel: one ? "Delete file" : "Delete files",
+    cancelLabel: one ? "Keep file" : "Keep files",
     onConfirm: async () => {
-      await api("/api/applications/" + updated.id, { method: "DELETE" });
-      await api("/api/applications/" + updated.id + "?permanent=1", { method: "DELETE" });
-      state.apps = state.apps.filter((item) => item.id !== updated.id);
-      state.trash = state.trash.filter((item) => item.id !== updated.id);
-      if (state.drawerId === updated.id) closeDrawer();
+      for (const doc of documents) {
+        await api(
+          "/api/applications/" + updated.id + "/documents/" + doc.id,
+          { method: "DELETE" }
+        );
+      }
+      if (state.drawerId === updated.id) await openDrawer(updated.id);
       render();
-      toast("Job and its files deleted");
+      toast(one ? "Deleted " + names : "Deleted " + documents.length + " files");
     },
   });
 }
