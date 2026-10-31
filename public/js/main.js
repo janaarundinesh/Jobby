@@ -7,7 +7,7 @@ import { closeModal, confirmEmptyTrash, confirmPurge, confirmTrash, extractFromL
 import { closeDrawer, closePreview, openDrawer, openPreview } from "./drawer.js";
 import { exportCSV, exportJSON, handleImportFile } from "./io.js";
 import { bindResumeEvents, openResumeForJob } from "./resume.js";
-import { closeNewProfile, closeProfiles, closeSettings, closeUnlock, createNewProfile, deleteCurrentProfile, downloadBackup, enterProfile, installEngine, lockProfile, logoutProfile, openNewProfile, openProfiles, openSettings, refreshEngineStatus, removePin, savePin, saveSettings, selectProfile, showSettingsView, showWelcome, submitUnlock } from "./profiles.js";
+import { closeNewProfile, closeProfiles, closeSettings, closeUnlock, createNewProfile, deleteCurrentProfile, downloadBackup, enterProfile, hideWelcome, installEngine, lockProfile, logoutProfile, openNewProfile, openProfiles, openSettings, refreshEngineStatus, removePin, savePin, saveSettings, selectProfile, showSettingsView, showWelcome, submitUnlock } from "./profiles.js";
 import { clearFilters, render, renderViewSwitch, renderWorkspace, setTab, syncFilterOptions } from "./workspace.js";
 import { installFocusManagement } from "./a11y.js";
 import { disableReminders, enableReminders, renderReminderSettings } from "./reminders.js";
@@ -623,6 +623,9 @@ export async function boot() {
   const current = state.profiles.find((profile) => profile.id === session);    if (current && (!current.locked || tokenFor(current.id))) {
       state.profileId = current.id;
       persistProfile();
+      // This session opens inside the profile, so the gate comes down: the shell
+      // in the page's own markup is gated until boot decides.
+      hideWelcome();
       renderProfileChrome();
       await loadApps();
   } else {
