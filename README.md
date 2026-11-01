@@ -630,6 +630,7 @@ public/                 Dashboard UI: index.html, styles.css, sw.js, manifest, i
                         a11y.js (dialog focus), reminders.js, pwa.js, status.js
 docs/screenshots/       The images in this README
 docs/examples/          jobs.example.json, a file the Import dialog accepts as it is
+docs/social-preview.png 1280x640 card GitHub shows when the repository is shared
 tests/                  pytest suite for the API
   tests/e2e/            Playwright suite driving the dashboard in Chromium
 data/                   Created on first run: tracker.db, uploads/ and backups/
