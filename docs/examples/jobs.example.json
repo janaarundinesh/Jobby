@@ -1,0 +1,72 @@
+[
+  {
+    "company": "Nordlicht Systems GmbH",
+    "role": "Backend Engineer (Python)"
+  },
+  {
+    "company": "Airbus Defence and Space GmbH",
+    "role": "Junior Simulation Software Developer C/C++ (m/f/d)",
+    "phase": "to_apply",
+    "location": "Manching, Bavaria, Germany",
+    "work_mode": "onsite",
+    "source": "Airbus careers",
+    "salary": "Not stated",
+    "job_url": "https://www.airbus.com/en/careers",
+    "description": "Develop C/C++ simulation models for the A400M programme, from requirements and interface design to real-time components, testing and acceptance.",
+    "match_pct": 72,
+    "why_it_matches": "Junior C/C++ simulation role; thesis in C++17; simulation work in C; Jenkins, Git and Linux in daily use.",
+    "important_missing_requirements": "No avionics or real-time C experience; German level not verified; full description not retrievable from the official site."
+  },
+  {
+    "company": "Helio Robotics",
+    "role": "Embedded Software Engineer",
+    "phase": "applied",
+    "status": "applied",
+    "applied_on": "2026-10-20",
+    "work_mode": "hybrid",
+    "location": "Munich, Germany",
+    "source": "Referral",
+    "salary": "EUR 62,000 - 70,000 / year",
+    "job_url": "https://example.com/jobs/4821",
+    "contact_name": "Marta Klein",
+    "contact_email": "marta.klein@example.com",
+    "next_step": "Send a follow-up note to Marta",
+    "next_step_on": "2026-10-27",
+    "match_pct": 84,
+    "notes": "Referred by Priya. Team of six, C++17 on Zephyr, on-call one week in four."
+  },
+  {
+    "company": "Feldwerk Data",
+    "role": "Platform Engineer",
+    "status": "interview",
+    "applied_on": "2026-10-08",
+    "work_mode": "remote",
+    "location": "Berlin, Germany",
+    "source": "Company site",
+    "next_step": "Technical interview, 90 minutes",
+    "next_step_on": "2026-11-04",
+    "match_pct": 65
+  },
+  {
+    "company": "Krantech Automation",
+    "role": "Controls Software Developer",
+    "status": "rejected",
+    "applied_on": "2026-09-29",
+    "source": "Indeed",
+    "match_pct": 48,
+    "notes": "Rejected after a screening call; they wanted hands-on Siemens TIA Portal."
+  },
+  {
+    "employer": "Weissach Labs",
+    "position": "Scientific Software Engineer",
+    "state": "screening",
+    "date_applied": "13.10.2026",
+    "workplace_type": "hybrid",
+    "job_location": "Stuttgart, Germany",
+    "link": "https://example.com/jobs/7701",
+    "compensation": "EUR 70,000 - 80,000 / year",
+    "estimated_match_pct": "70%",
+    "why_it_matches": "Scientific computing and numerical validation; benchmarking of parallel code; Python tooling on Linux.",
+    "comments": "Met the team lead at a meetup; they are hiring two people."
+  }
+]

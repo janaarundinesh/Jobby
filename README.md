@@ -316,6 +316,19 @@ Company,Role,Phase,Status,Applied On,Location,Work Mode,Source,Salary,Match %,Jo
 - **A file from a job-search tool carries more than the posting.** `estimated_match_pct` becomes the job's **Resume match**, and `why_it_matches` / `important_missing_requirements` are written into its **notes** under those headings. `match`, `match_percentage`, `match_score` and `resume_match` also count as the match; `missing_requirements` and `gaps` as the gaps. Anything else (`rank`, `employment_type`, …) is ignored.
 - A row that cannot be used — no company or no role — is named in the import message with the reason, instead of a bare count.
 
+**A complete example** — [`docs/examples/jobs.example.json`](docs/examples/jobs.example.json) is a real file that imports unchanged through **Add job → Import** (6 rows, none skipped). Taken row by row, it is the whole format in miniature:
+
+| Row | What it demonstrates |
+| --- | --- |
+| 1 | The minimum — company and role, no stage — which lands in *To apply* |
+| 2 | A saved posting with `match_pct`, a description, and `why_it_matches` / `important_missing_requirements` arriving in the notes |
+| 3 | An application with a date, a contact, a follow-up date and a salary |
+| 4 | A later stage (`interview`) with its next step |
+| 5 | `status` alone naming a rejection, so the row counts as an application you made |
+| 6 | Alias headers (`employer`, `position`, `link`, `date_applied`, `estimated_match_pct`) and a `DD.MM.YYYY` date |
+
+Copy it, replace the postings with your own, and import the result — nothing else in it needs to change.
+
 ### Duplicates
 
 A job is the same posting when its **company and role** match, ignoring case and
@@ -616,6 +629,7 @@ public/                 Dashboard UI: index.html, styles.css, sw.js, manifest, i
                         io.js (import/export), resume.js (editor and LaTeX preview),
                         a11y.js (dialog focus), reminders.js, pwa.js, status.js
 docs/screenshots/       The images in this README
+docs/examples/          jobs.example.json, a file the Import dialog accepts as it is
 tests/                  pytest suite for the API
   tests/e2e/            Playwright suite driving the dashboard in Chromium
 data/                   Created on first run: tracker.db, uploads/ and backups/
