@@ -83,6 +83,8 @@ The service worker caches the shell — `index.html`, `styles.css`, the ES modul
 
 ## The tabs
 
+The sections are a floating island: a capsule of glass on its own, centred on the window, sitting under a header that now holds only the app's identity and its actions. It keeps the same place on every screen and stays there as the page scrolls, its row transparent and click-through so the page behind it stays usable. On a window narrow enough for the header to wrap onto two lines, the island settles into the flow just below it instead.
+
 - **Overview** — total applications sent, active, interviews, offers, response rate, saved jobs, the stage funnel, applications per week (last 8 weeks) and follow-ups due in the next 7 days. The counters come from two places: **Total**, the goals, the streak and the weekly chart count applications sent and keep counting them if the job is later rejected or deleted, while **Active**, **Offers** and **Response rate** describe the jobs still on the list.
 - **To apply** — jobs you have saved but not sent yet. Also a table, with a one-click **Mark as applied** action on every row (or in the detail drawer). Saved jobs are excluded from pipeline stats, follow-up reminders and the board until you send them.
 - **Applied** — everything you have actually sent. Table view (search, filter, sort, inline stage changes) and board view (drag cards between Applied → Screening → Interview → Offer, plus Rejected/Withdrawn).
@@ -209,16 +211,23 @@ The live preview is an approximation of LaTeX, not a TeX engine: the fonts, spac
 
 ## Look and feel
 
-The interface uses an Apple-style glass treatment: translucent frosted panels over a slowly drifting colour backdrop, a specular highlight along the top edge of each surface, soft layered shadows and rounded 20–26 px corners. Sheets, the detail drawer and dialogs are more opaque than the panels behind them, so text stays comfortable while the glass still reads as glass.
+The whole dashboard is one material, in the spirit of Apple's Liquid Glass: a tinted pane that blurs, saturates and lifts the colour drifting behind it, a lens gradient that catches the light along its top-left edge and picks up a hint of the accent at its bottom-right, and a bevel of inset highlights instead of a flat border. Soft layered shadows float the panes over the backdrop, and corners run 20–26 px.
+
+The material comes in three densities. Panes (stat cards, charts, the tables, board columns) stay the most transparent. Detached surfaces — the drawer, dialogs, menus, toasts, the bulk bar — are denser and blur harder, because they sit over whatever happens to be underneath. And anything read at length is nearly solid with no sheen across its letters: notes, job descriptions, the drawer's callouts, the LaTeX source, the preview body. Body text clears 4.5:1 against the busiest part of the backdrop in both themes, and the light theme's panes are deliberately more solid than the dark one's, because white glass over pastel loses contrast fastest.
 
 Cards respond to the pointer: stat cards and panels lift two pixels while a soft light glint fades in behind their content, goal rings glow, board cards raise with an accent rim, document rows lift, and table rows and follow-up items gain a slim accent edge. The effects only run on devices with a real pointer and are reduced to colour changes when the system asks for reduced motion.
 
 Both themes are glass: the header toggle switches between dark smoked glass and light frosted glass. Everything is driven by custom properties at the top of `styles.css` if you want to retune it:
 
-- `--surface`, `--surface-raised`, `--surface-soft` — translucent panel tints; `--surface-solid` is the opaque base the drawer, dialogs and preview sheet mix with.
-- `--glass-edge`, `--glass-edge-soft`, `--glass-sheen` — the inner highlight and top-light gradient that make a surface look like glass.
-- `--glass-blur`, `--glass-sat` — the frosted blur and colour boost; the header, menus, board columns, drawer and dialogs blur harder than plain panels.
-- `--glow-1` … `--glow-4` — the colour orbs drifting behind everything.
+- `--lg-fill`, `--lg-fill-strong`, `--lg-fill-soft` — the three densities: a pane, a detached surface, and a card lying on a pane.
+- `--lg-lens` — the lens itself: the top-left specular highlight, the accent bloom at the bottom-right and the diagonal sheen.
+- `--lg-rim`, `--lg-edge`, `--lg-edge-top`, `--lg-edge-bottom` — the bevel: the inset highlights and the hairlines that draw the edge of the glass.
+- `--lg-blur`, `--lg-sat`, `--lg-bright` — how hard the material blurs, boosts colour and lifts brightness. Turning these down turns the material back into plain frosted glass.
+- `--lg-lift`, `--lg-text-shadow`, `--lg-radius` — the float shadow, the faint shadow under big numerals and headings (dark theme only), and the corner radius.
+- `--surface`, `--surface-raised`, `--surface-soft` — the older translucent tints that controls and chips still use; `--surface-solid` is the opaque base the sticky header mixes with.
+- `--glass-edge`, `--glass-edge-soft`, `--glass-sheen` — the inner highlight and top-light gradient the smaller components use.
+- `--glass-blur`, `--glass-sat` — the blur and colour boost the smaller components use.
+- `--glow-1` … `--glow-4` — the colour orbs drifting behind everything; two fields drift against each other, which is what gives the panes something to bend.
 - `--scrim` — the dimmed, blurred layer behind the drawer and dialogs.
 - `--shadow-sm`, `--shadow-md`, `--shadow-lg` — the three shadow depths.
 

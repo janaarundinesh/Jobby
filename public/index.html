@@ -67,6 +67,7 @@
   </div>
 </div>
 
+<div class="chrome" id="chrome">
 <header class="topbar">
   <a class="brand" href="#" aria-label="Jobby home">
     <span class="brand-mark" aria-hidden="true">
@@ -77,20 +78,6 @@
       <span>Your Job Applications Tracking Buddy</span>
     </span>
   </a>
-
-  <nav class="tabs" id="main-tabs" role="tablist" aria-label="Sections">
-    <button class="tab is-active" data-tab="overview" role="tab" aria-selected="true">Overview</button>
-    <button class="tab" data-tab="to_apply" role="tab" aria-selected="false">
-      To apply <span class="tab-count" id="count-toapply">0</span>
-    </button>
-    <button class="tab" data-tab="applied" role="tab" aria-selected="false">
-      Applied <span class="tab-count" id="count-applied">0</span>
-    </button>
-    <button class="tab" data-tab="resume" role="tab" aria-selected="false">LaTeX Editor</button>
-    <button class="tab" data-tab="trash" role="tab" aria-selected="false">
-      Trash <span class="tab-count" id="count-trash">0</span>
-    </button>
-  </nav>
 
   <div class="topbar-actions">
     <div class="server-status" id="server-status" data-state="checking">
@@ -135,6 +122,27 @@
     </button>
   </div>
 </header>
+</div>
+
+<!-- The sections are their own floating island: out of the header entirely, on a
+     row of their own, centred on the window, and in the same place on every
+     screen. The row is transparent and lets clicks through, so only the pill
+     itself is ever in the way of the page behind it. -->
+<div class="menu-row">
+  <nav class="tabs" id="main-tabs" role="tablist" aria-label="Sections">
+    <button class="tab is-active" data-tab="overview" role="tab" aria-selected="true">Overview</button>
+    <button class="tab" data-tab="to_apply" role="tab" aria-selected="false">
+      To apply <span class="tab-count" id="count-toapply">0</span>
+    </button>
+    <button class="tab" data-tab="applied" role="tab" aria-selected="false">
+      Applied <span class="tab-count" id="count-applied">0</span>
+    </button>
+    <button class="tab" data-tab="resume" role="tab" aria-selected="false">LaTeX Editor</button>
+    <button class="tab" data-tab="trash" role="tab" aria-selected="false">
+      Trash <span class="tab-count" id="count-trash">0</span>
+    </button>
+  </nav>
+</div>
 
 <main class="page" id="main">
   <!-- ============ Overview tab ============ -->

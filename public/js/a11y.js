@@ -13,7 +13,9 @@ const FOCUSABLE = [
 ].join(",");
 
 // The page behind a modal must not be reachable by Tab or screen readers.
-const BACKGROUND = ".topbar, main.page, .welcome";
+// The island of section tabs sits outside the header but is just as much part of
+// the background while a dialog is open.
+const BACKGROUND = ".chrome, .menu-row, main.page, .welcome";
 
 const open = new Set();
 let lastOutsideFocus = null;

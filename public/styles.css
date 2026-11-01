@@ -5,10 +5,14 @@
   color-scheme: dark;
   --bg: #05060b;
   --bg-2: #0b0d17;
-  --glow-1: rgba(72, 106, 255, 0.5);
-  --glow-2: rgba(168, 85, 247, 0.36);
-  --glow-3: rgba(45, 212, 191, 0.24);
-  --glow-4: rgba(244, 114, 182, 0.22);
+  --glow-1: rgba(88, 120, 255, 0.62);
+  --glow-2: rgba(178, 96, 255, 0.46);
+  --glow-3: rgba(45, 212, 191, 0.32);
+  --glow-4: rgba(244, 114, 182, 0.3);
+  /* Liquid glass: a tinted pane, a lens that catches the light along its top
+     edge, and enough blur to smear the colour behind it into the pane. The
+     fills lean opaque because the pane carries text: -strong is for anything
+     that is read at length (notes, source, description), -soft for chips. */
   --surface: rgba(22, 25, 36, 0.55);
   --surface-solid: #161924;
   --surface-raised: rgba(40, 44, 60, 0.7);
@@ -22,11 +26,31 @@
   --glass-sheen: linear-gradient(155deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.02) 42%, rgba(255, 255, 255, 0) 68%);
   --glass-blur: 28px;
   --glass-sat: 175%;
+  --lg-fill: rgba(23, 27, 40, 0.62);
+  --lg-fill-strong: rgba(15, 18, 28, 0.82);
+  --lg-fill-soft: rgba(255, 255, 255, 0.065);
+  --lg-edge: rgba(255, 255, 255, 0.14);
+  --lg-edge-top: rgba(255, 255, 255, 0.4);
+  --lg-edge-bottom: rgba(255, 255, 255, 0.05);
+  --lg-lens:
+    radial-gradient(128% 92% at 10% -18%, rgba(255, 255, 255, 0.19), transparent 56%),
+    radial-gradient(96% 84% at 94% 116%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 62%),
+    linear-gradient(158deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.012) 46%, rgba(255, 255, 255, 0.045));
+  --lg-rim:
+    inset 0 1px 0 var(--lg-edge-top),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    inset 0 -1px 0 var(--lg-edge-bottom);
+  --lg-lift: 0 30px 62px -40px rgba(0, 0, 0, 0.92), 0 10px 24px -22px rgba(0, 0, 0, 0.62);
+  --lg-blur: 44px;
+  --lg-sat: 190%;
+  --lg-bright: 1.06;
+  --lg-text-shadow: 0 1px 1px rgba(0, 0, 0, 0.34);
+  --lg-radius: 26px;
   --wash: rgba(255, 255, 255, 0.06);
   --scrim: rgba(3, 5, 12, 0.42);
-  --text: #eef0f7;
-  --text-dim: #aab2c5;
-  --text-faint: #7f899c;
+  --text: #f3f5fb;
+  --text-dim: #b5bece;
+  --text-faint: #8b95a9;
   --accent: #7f93ff;
   --accent-strong: #a3b1ff;
   --accent-ink: #080a14;
@@ -55,10 +79,10 @@
   color-scheme: light;
   --bg: #e8ecf7;
   --bg-2: #f8f5fb;
-  --glow-1: rgba(96, 132, 255, 0.42);
-  --glow-2: rgba(186, 128, 255, 0.34);
-  --glow-3: rgba(94, 214, 233, 0.3);
-  --glow-4: rgba(255, 156, 196, 0.3);
+  --glow-1: rgba(96, 132, 255, 0.5);
+  --glow-2: rgba(186, 128, 255, 0.42);
+  --glow-3: rgba(94, 214, 233, 0.38);
+  --glow-4: rgba(255, 156, 196, 0.38);
   --surface: rgba(255, 255, 255, 0.55);
   --surface-solid: #ffffff;
   --surface-raised: rgba(255, 255, 255, 0.78);
@@ -72,11 +96,33 @@
   --glass-sheen: linear-gradient(155deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.4) 46%, rgba(255, 255, 255, 0.06) 74%);
   --glass-blur: 26px;
   --glass-sat: 160%;
+  /* White glass over a pastel backdrop loses contrast in a hurry, so the light
+     theme keeps its panes a good deal more solid than the dark one. */
+  --lg-fill: rgba(255, 255, 255, 0.74);
+  --lg-fill-strong: rgba(255, 255, 255, 0.92);
+  --lg-fill-soft: rgba(255, 255, 255, 0.55);
+  --lg-edge: rgba(255, 255, 255, 0.92);
+  --lg-edge-top: rgba(255, 255, 255, 1);
+  --lg-edge-bottom: rgba(17, 24, 39, 0.06);
+  --lg-lens:
+    radial-gradient(128% 92% at 10% -18%, rgba(255, 255, 255, 0.85), transparent 58%),
+    radial-gradient(96% 84% at 94% 116%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 64%),
+    linear-gradient(158deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.08) 48%, rgba(255, 255, 255, 0.3));
+  --lg-rim:
+    inset 0 1px 0 var(--lg-edge-top),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6),
+    inset 0 -1px 0 var(--lg-edge-bottom);
+  --lg-lift: 0 28px 54px -38px rgba(24, 34, 64, 0.5), 0 10px 22px -20px rgba(24, 34, 64, 0.24);
+  --lg-blur: 40px;
+  --lg-sat: 170%;
+  --lg-bright: 1.04;
+  --lg-text-shadow: none;
+  --lg-radius: 26px;
   --wash: rgba(17, 24, 39, 0.045);
   --scrim: rgba(24, 30, 46, 0.26);
-  --text: #141821;
-  --text-dim: #4d566a;
-  --text-faint: #6b7488;
+  --text: #101622;
+  --text-dim: #414b5f;
+  --text-faint: #5a6478;
   --accent: #4c60e2;
   --accent-strong: #3a4ed4;
   --accent-ink: #ffffff;
@@ -120,17 +166,34 @@ body {
 
 body.no-scroll { overflow: hidden; }
 
+/* The colour behind the glass. Liquid glass only reads as glass if there is
+   something moving on the other side of it, so the backdrop is a slow field of
+   colour that the panes blur, brighten and tint as it drifts past. */
 .ambient {
   position: fixed;
-  inset: -28vh -18vw;
+  inset: -30vh -20vw;
   pointer-events: none;
   z-index: 0;
   background:
     radial-gradient(46vw 46vw at 16% 8%, var(--glow-1), transparent 66%),
     radial-gradient(40vw 40vw at 84% 2%, var(--glow-2), transparent 68%),
     radial-gradient(38vw 38vw at 72% 90%, var(--glow-3), transparent 70%),
-    radial-gradient(34vw 34vw at 4% 84%, var(--glow-4), transparent 72%);
+    radial-gradient(34vw 34vw at 4% 84%, var(--glow-4), transparent 72%),
+    radial-gradient(52vw 34vw at 50% 46%, color-mix(in srgb, var(--glow-2) 42%, transparent), transparent 74%);
   animation: ambient-drift 38s ease-in-out infinite alternate;
+}
+
+/* A second, paler sweep moving against the first: the two crossing fields are
+   what makes the panes look like they are bending light rather than tinting it. */
+.ambient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(34vw 30vw at 74% 34%, color-mix(in srgb, var(--glow-3) 55%, transparent), transparent 70%),
+    radial-gradient(30vw 26vw at 22% 62%, color-mix(in srgb, var(--glow-4) 48%, transparent), transparent 72%),
+    radial-gradient(40vw 22vw at 50% 100%, color-mix(in srgb, var(--glow-1) 34%, transparent), transparent 76%);
+  animation: ambient-drift 52s ease-in-out infinite alternate-reverse;
 }
 
 @keyframes ambient-drift {
@@ -193,21 +256,43 @@ kbd {
 
 /* ---------------- top bar ---------------- */
 
-.topbar {
+/* The header's own pane of glass. It holds the app's identity and its actions
+   and nothing else; the section menu is a separate island below it. */
+.chrome {
   position: sticky;
   top: 0;
   z-index: 20;
+  background-color: color-mix(in srgb, var(--bg) 64%, transparent);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 68%);
+  -webkit-backdrop-filter: blur(34px) saturate(190%) brightness(1.05);
+  backdrop-filter: blur(34px) saturate(190%) brightness(1.05);
+  border-bottom: 1px solid var(--border);
+  box-shadow: inset 0 1px 0 var(--glass-edge-soft), 0 20px 44px -36px rgba(0, 0, 0, 0.85);
+}
+
+.topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
   flex-wrap: wrap;
   padding: 12px 28px;
-  background: color-mix(in srgb, var(--bg) 58%, transparent);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
-  backdrop-filter: blur(30px) saturate(180%);
-  border-bottom: 1px solid var(--border);
-  box-shadow: inset 0 1px 0 var(--glass-edge-soft), 0 18px 40px -34px rgba(0, 0, 0, 0.85);
+}
+
+/* The menu as a floating island: its own row, centred on the window, with no
+   band of glass behind it. The row is transparent and takes no clicks — only
+   the pill does — so the page behind it stays usable. It holds its place as the
+   page scrolls, stopping just under the header, which is what keeps the menu in
+   the same spot on every screen. */
+.menu-row {
+  position: sticky;
+  top: 70px;
+  z-index: 19;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 10px 28px 12px;
+  pointer-events: none;
 }
 
 .brand {
@@ -389,15 +474,22 @@ kbd {
 }
 
 .tabs {
+  /* The island itself: a capsule of its own glass, dense enough to read a tab
+     label over whatever it happens to be floating above. */
+  pointer-events: auto;
   display: inline-flex;
-  gap: 3px;
-  padding: 4px;
-  background: var(--glass-tint);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: inset 0 1px 0 var(--glass-edge-soft), 0 12px 26px -24px rgba(0, 0, 0, 0.9);
-  -webkit-backdrop-filter: blur(22px) saturate(170%);
-  backdrop-filter: blur(22px) saturate(170%);
+  gap: 2px;
+  padding: 5px;
+  background-color: color-mix(in srgb, var(--surface-solid) 70%, transparent);
+  background-image: var(--lg-lens);
+  border: 1px solid var(--lg-edge);
+  border-radius: 999px;
+  box-shadow:
+    var(--lg-rim),
+    0 20px 36px -20px rgba(0, 0, 0, 0.85),
+    0 6px 14px -10px rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(32px) saturate(var(--lg-sat)) brightness(var(--lg-bright));
+  backdrop-filter: blur(32px) saturate(var(--lg-sat)) brightness(var(--lg-bright));
 }
 
 .tab {
@@ -411,15 +503,21 @@ kbd {
   color: var(--text-dim);
   background: transparent;
   border: 0;
-  border-radius: 12px;
+  border-radius: 999px;
   cursor: pointer;
+  /* One row of tabs, always: a wrapped label would make the island two lines
+     tall on a narrow window. */
+  white-space: nowrap;
   transition: background 0.15s, color 0.15s;
 }
-.tab:hover { color: var(--text); background: var(--glass-tint); }
+.tab:hover { color: var(--text); background: var(--lg-fill-soft); }
 .tab.is-active {
   color: var(--text);
-  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
-  box-shadow: inset 0 1px 0 var(--glass-edge), 0 8px 18px -14px rgba(0, 0, 0, 0.85);
+  /* The selected section is a lens of its own: a brighter pane sitting proud
+     of the bar, with the light caught along its top edge. */
+  background-color: color-mix(in srgb, var(--surface-raised) 76%, transparent);
+  background-image: var(--glass-sheen);
+  box-shadow: inset 0 1px 0 var(--lg-edge-top), 0 10px 20px -16px rgba(0, 0, 0, 0.9);
 }
 .tab-count {
   min-width: 19px;
@@ -2429,7 +2527,8 @@ tr:hover .row-actions, .row-actions:focus-within, .row-actions.is-visible { opac
 }
 /* ---------------- welcome (profile picker) ---------------- */
 
-html.is-welcome .topbar,
+html.is-welcome .chrome,
+html.is-welcome .menu-row,
 html.is-welcome .page { display: none; }
 
 .welcome {
@@ -3039,9 +3138,11 @@ html.is-offline .file-guard {
   backdrop-filter: blur(24px) saturate(150%);
 }
 
-html.is-file .topbar,
+html.is-file .chrome,
+html.is-file .menu-row,
 html.is-file .page,
-html.is-offline .topbar,
+html.is-offline .chrome,
+html.is-offline .menu-row,
 html.is-offline .page,
 html.is-offline .welcome { display: none; }
 
@@ -3125,7 +3226,7 @@ html.is-offline .welcome { display: none; }
 /* ---------------- responsive ---------------- */
 
 @media (max-width: 900px) {
-  .tabs { order: 3; width: 100%; }
+  /* The island keeps its own width instead of stretching with the window. */
   .tab { flex: 1; justify-content: center; }
 }
 
@@ -3156,6 +3257,9 @@ html.is-offline .welcome { display: none; }
 
 @media (max-width: 760px) {
   .topbar { padding: 12px 16px; }
+  /* The header can wrap onto two lines on a narrow window, so the island stays
+     in the flow rather than trying to pin itself under a bar of unknown height. */
+  .menu-row { position: static; padding: 4px 16px 10px; }
   .page { padding: 22px 16px 60px; gap: 26px; }
   .topbar-actions { width: 100%; justify-content: space-between; }
   .btn-primary kbd, .search kbd { display: none; }
@@ -3207,7 +3311,10 @@ html.is-offline .welcome { display: none; }
 .tab-resume #data-menu-btn { display: none; }
 
 .resume-view {
-  --topbar-h: 61px;
+  /* Everything above the editor in the page's flow: the sticky header (61px)
+     plus the island's row below it (10 + 46 + 12). The editor fills what is
+     left of the window, so this has to track both. */
+  --topbar-h: 129px;
   margin: -30px -28px -80px;
   padding: 0;
   gap: 0;
@@ -3890,4 +3997,158 @@ body.tab-resume .resume-view {
   .apps-table .salary-cell,
   .apps-table .salary-cell span { max-width: 100%; }
   .apps-table .link-cell .link-plain { max-width: 100%; }
+}
+
+/* ---------------- liquid glass ----------------
+
+   One material for the whole dashboard, in three densities.
+
+   A pane is a tinted lens: the fill is translucent, the lens gradient catches
+   light along its top-left edge and picks up a hint of the accent at its
+   bottom-right, a rim of inset shadows draws the bevel, and the backdrop
+   filter blurs, saturates and slightly lifts whatever colour is behind it. The
+   three densities are:
+
+     pane    .stat-card, .panel, .table-shell ...   the room of the dashboard
+     float   .drawer, .modal, .menu ...             detached things over content
+     read    .notes-area, .resume-source ...        text that is read, not scanned
+
+   Float and read lean opaque on purpose: a job description or a LaTeX source
+   line is the one place a glass wall must not compete with the letters on it.
+   Everything else keeps the transparency that makes the material worth having,
+   and the fills below are tuned so body text still clears 4.5:1 against the
+   busiest part of the backdrop. */
+
+.stat-card,
+.panel,
+.table-shell,
+.board-col,
+.welcome-card,
+.resume-empty-card {
+  background-color: var(--lg-fill);
+  background-image: var(--lg-lens);
+  border: 1px solid var(--lg-edge);
+  box-shadow: var(--lg-rim), var(--lg-lift);
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) brightness(var(--lg-bright));
+  backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) brightness(var(--lg-bright));
+}
+
+/* Detached surfaces: they can sit over anything, so they are denser and the
+   blur is deeper — a menu over a table of text has to be readable at once. */
+.drawer,
+.modal,
+.preview-modal,
+.menu,
+.toast,
+.bulk-bar,
+.file-guard-card {
+  background-color: var(--lg-fill-strong);
+  background-image: var(--lg-lens);
+  border: 1px solid var(--lg-edge);
+  box-shadow: var(--lg-rim), var(--lg-lift);
+  -webkit-backdrop-filter: blur(48px) saturate(var(--lg-sat)) brightness(var(--lg-bright));
+  backdrop-filter: blur(48px) saturate(var(--lg-sat)) brightness(var(--lg-bright));
+}
+
+/* The cards that lie on a pane: glass on glass, so a lighter lens and a
+   shallower blur — two deep blurs stacked is weight without a reward. */
+.app-card,
+.doc-item,
+.settings-row,
+.profile-row,
+.lock-profile,
+.next-step-box,
+.resume-file.is-active,
+.picker-item.is-selected {
+  background-color: var(--lg-fill-soft);
+  background-image: var(--glass-sheen);
+  border: 1px solid var(--lg-edge);
+  box-shadow: inset 0 1px 0 var(--lg-edge-top), 0 12px 24px -22px rgba(0, 0, 0, 0.8);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Read at length. Nearly solid, and no lens gradient across the letters. */
+.notes-area,
+.description-box,
+.drawer-callout,
+.resume-editor,
+.resume-gutter,
+.resume-source,
+.preview-body,
+.file-guard-cmd {
+  background-color: var(--lg-fill-strong);
+  background-image: none;
+}
+
+.notes-area,
+.description-box,
+.resume-source,
+.preview-body {
+  border: 1px solid var(--lg-edge);
+  box-shadow: inset 0 1px 0 var(--lg-edge-top);
+}
+
+/* The resume editor keeps its three columns of glass, but they carry code and
+   a rendered page: denser fill, no lens sheen over the source. */
+.resume-rail,
+.resume-main,
+.resume-side {
+  background-color: color-mix(in srgb, var(--lg-fill) 82%, var(--bg));
+  background-image: var(--lg-lens);
+  border-color: var(--lg-edge);
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+  backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+}
+
+.resume-tabs-bar,
+.resume-bar {
+  background-color: color-mix(in srgb, var(--bg) 62%, transparent);
+  border-bottom-color: var(--lg-edge);
+}
+
+/* Headings and the big numbers sit near the lens's bright edge, which is the
+   one spot a coloured backdrop can wash a word out. A whisper of shadow under
+   the dark theme settles them; the light theme needs none. */
+.stat-value,
+.goal-ring-value,
+.streak-value,
+.section-head h1,
+.section-head h2,
+.welcome-head h1,
+.drawer-title,
+.preview-head-text h2 {
+  text-shadow: var(--lg-text-shadow);
+}
+
+/* The table's own glass has a sticky header scrolling over it: keep the header
+   pane solid enough that rows do not show through the column titles. */
+.apps-table thead th {
+  background-color: color-mix(in srgb, var(--surface-solid) 74%, transparent);
+  border-bottom: 1px solid var(--lg-edge);
+}
+
+.apps-table tbody tr:hover {
+  background: color-mix(in srgb, var(--wash) 55%, var(--lg-fill-soft));
+}
+
+/* Pointed at with a mouse, a pane catches the light: the bevel brightens to the
+   top highlight and a thin accent ring appears around it, the way a real lens
+   lights up at its edge rather than sliding around. The lift comes from the
+   hover rules above; these only change the material. */
+@media (hover: hover) {
+  .stat-card:hover,
+  .panel:hover,
+  .app-card:hover,
+  .doc-item:hover {
+    border-color: var(--lg-edge-top);
+    box-shadow: var(--lg-rim), 0 34px 66px -40px rgba(0, 0, 0, 0.95), 0 0 0 1px color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-card,
+  .panel,
+  .app-card,
+  .doc-item { transition: none; }
 }
