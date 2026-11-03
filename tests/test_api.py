@@ -795,7 +795,7 @@ def test_pin_lock_requires_a_valid_token(api):
 def test_pin_guesses_slow_down_after_a_few_misses(api, monkeypatch):
     # Four digits are ten thousand guesses, so the wait after a miss is the
     # lock: a handful are free, then each one costs longer than the last.
-    monkeypatch.setattr(server, "PIN_FAILURES", {})
+    monkeypatch.setattr(server.auth, "PIN_FAILURES", {})
     profile = api.get("/api/profiles").data[0]
     unlock = "/api/profiles/%d/unlock" % profile["id"]
     assert api.post("/api/profiles/%d/pin" % profile["id"], {"pin": "4321"}).status == 200
@@ -808,14 +808,14 @@ def test_pin_guesses_slow_down_after_a_few_misses(api, monkeypatch):
     blocked = api.post(unlock, {"pin": "0000"})
     assert blocked.status == 429
     assert "try again in" in blocked.data["error"]
-    assert blocked.data["retry_after"] >= server.PIN_LOCK_BASE
+    assert blocked.data["retry_after"] >= server.auth.PIN_LOCK_BASE
     assert api.post(unlock, {"pin": "4321"}).status == 429
 
     # Once the wait is over the right PIN opens the profile again, and a
     # success forgets the misses instead of carrying them forward.
-    server.PIN_FAILURES[profile["id"]]["until"] = 0
+    server.auth.PIN_FAILURES[profile["id"]]["until"] = 0
     assert api.post(unlock, {"pin": "4321"}).status == 200
-    assert server.PIN_FAILURES.get(profile["id"]) is None
+    assert server.auth.PIN_FAILURES.get(profile["id"]) is None
 
 
 def test_the_dashboard_is_served_with_a_strict_policy(api):
@@ -1229,8 +1229,8 @@ def test_compiling_finds_an_uploaded_support_file(api):
 
 
 def test_engine_status_says_what_compile_would_use(api, monkeypatch):
-    monkeypatch.setattr(server, "ENGINE_INSTALL", {"state": "idle", "message": ""})
-    monkeypatch.setattr(server, "latex_engine", lambda: None)
+    monkeypatch.setattr(server.resumes, "ENGINE_INSTALL", {"state": "idle", "message": ""})
+    monkeypatch.setattr(server.resumes, "latex_engine", lambda: None)
     response = api.get("/api/engine")
     assert response.status == 200
     assert response.data == {
@@ -1241,8 +1241,8 @@ def test_engine_status_says_what_compile_would_use(api, monkeypatch):
         "message": "",
     }
 
-    monkeypatch.setattr(server, "latex_engine", lambda: "/usr/local/bin/tectonic")
-    monkeypatch.setattr(server, "engine_version", lambda binary: "Tectonic 0.17.0")
+    monkeypatch.setattr(server.resumes, "latex_engine", lambda: "/usr/local/bin/tectonic")
+    monkeypatch.setattr(server.resumes, "engine_version", lambda binary: "Tectonic 0.17.0")
     status = api.get("/api/engine").data
     assert status["available"] is True
     assert status["version"] == "Tectonic 0.17.0"
@@ -1265,10 +1265,10 @@ def wait_for_install(api, seconds=5):
 
 def test_installing_the_engine_downloads_in_the_background(api, monkeypatch, tmp_path):
     tools = tmp_path / "tools" / "tectonic"
-    monkeypatch.setattr(server, "TECTONIC_DIR", str(tools))
-    monkeypatch.setattr(server.shutil, "which", lambda name: None)
-    monkeypatch.setattr(server, "ENGINE_INSTALL", {"state": "idle", "message": ""})
-    monkeypatch.setattr(server, "engine_version", lambda binary: "Tectonic 9.9.9")
+    monkeypatch.setattr(server.resumes, "TECTONIC_DIR", str(tools))
+    monkeypatch.setattr(server.resumes.shutil, "which", lambda name: None)
+    monkeypatch.setattr(server.resumes, "ENGINE_INSTALL", {"state": "idle", "message": ""})
+    monkeypatch.setattr(server.resumes, "engine_version", lambda binary: "Tectonic 9.9.9")
     calls = []
 
     def fake_install(**kwargs):
@@ -1302,10 +1302,10 @@ def test_installing_the_engine_downloads_in_the_background(api, monkeypatch, tmp
 
 def test_an_install_that_lands_elsewhere_is_not_called_ready(api, monkeypatch, tmp_path):
     """A successful download the tracker cannot see is a failure, not a success."""
-    monkeypatch.setattr(server, "TECTONIC_DIR", str(tmp_path / "tools"))
-    monkeypatch.setattr(server.shutil, "which", lambda name: None)
-    monkeypatch.setattr(server, "ENGINE_INSTALL", {"state": "idle", "message": ""})
-    monkeypatch.setattr(server, "engine_version", lambda binary: "Tectonic 9.9.9")
+    monkeypatch.setattr(server.resumes, "TECTONIC_DIR", str(tmp_path / "tools"))
+    monkeypatch.setattr(server.resumes.shutil, "which", lambda name: None)
+    monkeypatch.setattr(server.resumes, "ENGINE_INSTALL", {"state": "idle", "message": ""})
+    monkeypatch.setattr(server.resumes, "engine_version", lambda binary: "Tectonic 9.9.9")
     elsewhere = tmp_path / "somewhere-else"
     elsewhere.mkdir()
     binary = elsewhere / "tectonic"
@@ -1320,9 +1320,9 @@ def test_an_install_that_lands_elsewhere_is_not_called_ready(api, monkeypatch, t
 
 
 def test_a_failed_install_is_reported_rather_than_hidden(api, monkeypatch, tmp_path):
-    monkeypatch.setattr(server, "TECTONIC_DIR", str(tmp_path / "tools"))
-    monkeypatch.setattr(server.shutil, "which", lambda name: None)
-    monkeypatch.setattr(server, "ENGINE_INSTALL", {"state": "idle", "message": ""})
+    monkeypatch.setattr(server.resumes, "TECTONIC_DIR", str(tmp_path / "tools"))
+    monkeypatch.setattr(server.resumes.shutil, "which", lambda name: None)
+    monkeypatch.setattr(server.resumes, "ENGINE_INSTALL", {"state": "idle", "message": ""})
     monkeypatch.setattr(
         server.install_tectonic,
         "install_engine",
@@ -1338,10 +1338,10 @@ def test_a_failed_install_is_reported_rather_than_hidden(api, monkeypatch, tmp_p
 def test_a_downloaded_engine_that_will_not_run_counts_as_a_failure(api, monkeypatch, tmp_path):
     binary = tmp_path / "tectonic"
     binary.write_bytes(b"not really an engine")
-    monkeypatch.setattr(server, "TECTONIC_DIR", str(tmp_path / "tools"))
-    monkeypatch.setattr(server.shutil, "which", lambda name: None)
-    monkeypatch.setattr(server, "ENGINE_INSTALL", {"state": "idle", "message": ""})
-    monkeypatch.setattr(server, "engine_version", lambda engine: "")
+    monkeypatch.setattr(server.resumes, "TECTONIC_DIR", str(tmp_path / "tools"))
+    monkeypatch.setattr(server.resumes.shutil, "which", lambda name: None)
+    monkeypatch.setattr(server.resumes, "ENGINE_INSTALL", {"state": "idle", "message": ""})
+    monkeypatch.setattr(server.resumes, "engine_version", lambda engine: "")
     monkeypatch.setattr(server.install_tectonic, "install_engine", lambda **kwargs: str(binary))
     api.post("/api/engine/install", {})
     status = wait_for_install(api)
@@ -1361,8 +1361,8 @@ def test_engine_status_describes_the_engine_that_is_installed(api):
 def test_compile_says_when_no_latex_engine_is_installed(api, monkeypatch, tmp_path):
     resume = api.post("/api/resumes", {"name": "master"}).data
     # No engine on PATH, and none in the folder the installer fills.
-    monkeypatch.setattr(server.shutil, "which", lambda name: None)
-    monkeypatch.setattr(server, "TECTONIC_DIR", str(tmp_path / "tools" / "tectonic"))
+    monkeypatch.setattr(server.resumes.shutil, "which", lambda name: None)
+    monkeypatch.setattr(server.resumes, "TECTONIC_DIR", str(tmp_path / "tools" / "tectonic"))
     response = api.post("/api/resumes/%d/compile" % resume["id"], {})
     assert response.status == 501
     assert "No LaTeX engine" in response.data["error"]

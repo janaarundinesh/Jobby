@@ -8,3 +8,4 @@ tools/
 # Built on first launch by Jobby.app from Contents/Resources/JobbyWindow.swift
 Jobby.app/Contents/MacOS/JobbyWindow
 Jobby.app/Contents/MacOS/JobbyWindow.building
+.coverage

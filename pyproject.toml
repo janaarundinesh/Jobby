@@ -18,7 +18,7 @@ select = ["E4", "E7", "E9", "F"]
 
 [tool.mypy]
 python_version = "3.9"
-files = ["extract.py"]
+files = ["jobby", "extract.py", "install_tectonic.py"]
 check_untyped_defs = true
 ignore_missing_imports = true
 warn_unused_ignores = true

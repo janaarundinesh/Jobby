@@ -1466,10 +1466,10 @@ def test_settings_shows_the_engine_and_installs_it_on_one_click(page, monkeypatc
     import server
 
     tools = tmp_path / "tools" / "tectonic"
-    monkeypatch.setattr(server, "TECTONIC_DIR", str(tools))
-    monkeypatch.setattr(server.shutil, "which", lambda name: None)
-    monkeypatch.setattr(server, "ENGINE_INSTALL", {"state": "idle", "message": ""})
-    monkeypatch.setattr(server, "engine_version", lambda binary: "Tectonic 9.9.9")
+    monkeypatch.setattr(server.resumes, "TECTONIC_DIR", str(tools))
+    monkeypatch.setattr(server.resumes.shutil, "which", lambda name: None)
+    monkeypatch.setattr(server.resumes, "ENGINE_INSTALL", {"state": "idle", "message": ""})
+    monkeypatch.setattr(server.resumes, "engine_version", lambda binary: "Tectonic 9.9.9")
 
     enter_profile(page)
     page.click("#settings-btn")

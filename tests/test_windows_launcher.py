@@ -24,7 +24,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 VBS = ROOT / "Jobby.vbs"
 BAT = ROOT / "Start Jobby.bat"
-SERVER = ROOT / "server.py"
+SERVER = ROOT / "jobby" / "http_server.py"
 
 # Port and endpoint the three have to agree on, or the wait before the window
 # opens would never see the server come up.

@@ -160,8 +160,8 @@ def test_the_server_finds_the_engine_the_installer_fetches(tmp_path, monkeypatch
     monkeypatch.setattr(install_tectonic, "TOOLS", str(tools))
     assert install_tectonic.downloaded_binary() == str(engine)
 
-    monkeypatch.setattr(server, "TECTONIC_DIR", str(tools))
-    monkeypatch.setattr(server.shutil, "which", lambda found: "/usr/bin/tectonic-from-path")
+    monkeypatch.setattr(server.resumes, "TECTONIC_DIR", str(tools))
+    monkeypatch.setattr(server.resumes.shutil, "which", lambda found: "/usr/bin/tectonic-from-path")
     assert server.latex_engine() == str(engine)
 
     engine.unlink()
