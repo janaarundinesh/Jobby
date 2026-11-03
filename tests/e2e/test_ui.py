@@ -1936,7 +1936,26 @@ def test_a_json_file_shaped_differently_is_read_or_explained(page):
     )
 
     # A list under a key of its own — what most exports of anything look like.
-    payload = json.dumps({"jobs": [{"company": "Wrapper Co", "role": "Data Analyst"}]}).encode("utf-8")
+    # The shape a ranked search writes: a date beside the list, and keys the app
+    # does not use on every job. None of it may stand in the way of the import.
+    payload = json.dumps(
+        {
+            "search_date": "2026-11-03",
+            "jobs": [
+                {
+                    "rank": 1,
+                    "company": "Wrapper Co",
+                    "role": "Data Analyst",
+                    "location": "Hamburg",
+                    "posted": "2026-11-02",
+                    "employment": "Full-time",
+                    "deadline": "2026-11-30",
+                    "match": 88,
+                    "url": "https://example.invalid/wrapper",
+                }
+            ],
+        }
+    ).encode("utf-8")
     page.set_input_files(
         "#modal-import-file",
         {"name": "jobs.json", "mimeType": "application/json", "buffer": payload},
@@ -1945,6 +1964,8 @@ def test_a_json_file_shaped_differently_is_read_or_explained(page):
     page.wait_for_function(
         "() => /Wrapper Co/.test(document.querySelector('#toapply-table-body').innerText)"
     )
+    # 'match' from the file became the resume match, as the README promises.
+    assert "88" in page.locator("#toapply-table-body").inner_text()
 
     # The reader itself, for the shapes a file dialog makes awkward to stage.
     shapes = page.evaluate(
