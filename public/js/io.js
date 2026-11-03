@@ -196,6 +196,7 @@ export function cleanImportedRow(row) {
     let value = row[key];
     if (value == null) return;
     if (Array.isArray(value)) value = value.join("\n- ");
+    else if (isObject(value)) return;
     value = String(value).trim();
     if (!value) return;
     if (key === "match_pct") {
@@ -236,21 +237,83 @@ export function rowsFromCSV(text) {
 }
 
 
+// The keys a saved file may keep its list of jobs under, besides a bare array.
+export const LIST_KEYS = ["applications", "jobs", "items", "data", "results", "rows"];
+
+
+function isObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+
+function parseLines(lines) {
+  const items = [];
+  for (const line of lines) {
+    try {
+      items.push(JSON.parse(line));
+    } catch (error) {
+      return null;
+    }
+  }
+  return items;
+}
+
+
+function jobsIn(parsed) {
+  if (Array.isArray(parsed)) return parsed;
+  if (!isObject(parsed)) return null;
+  const wrapper = LIST_KEYS.find((key) => Array.isArray(parsed[key]));
+  if (wrapper) return parsed[wrapper];
+  // One posting on its own is still a file worth importing.
+  if (parsed.company || parsed.role) return [parsed];
+  return null;
+}
+
+
 export function rowsFromJSON(text) {
-  const parsed = JSON.parse(String(text).replace(/^\uFEFF/, ""));
-  let list = null;
-  if (Array.isArray(parsed)) list = parsed;
-  else if (parsed && Array.isArray(parsed.applications)) list = parsed.applications;
-  if (!list) throw new Error("Expected a JSON array of jobs");
-  const rows = list.map((item) => {
+  const source = String(text == null ? "" : text).replace(/^\uFEFF/, "").trim();
+  if (!source) throw new Error("That file is empty.");
+  let parsed;
+  try {
+    parsed = JSON.parse(source);
+  } catch (error) {
+    // A file of one posting per line is JSON too, just not one document: try it
+    // that way before reporting the file as unreadable.
+    const lines = source.split(/\r?\n/).filter((line) => line.trim());
+    const lineItems = lines.length > 1 ? parseLines(lines) : null;
+    if (!lineItems) {
+      throw new Error(
+        "That file is not valid JSON: " + (error.message || "it could not be read") + "."
+      );
+    }
+    parsed = lineItems;
+  }
+  const list = jobsIn(parsed);
+  if (!list) {
+    throw new Error(
+      "That JSON file has no list of jobs in it. Send an array of jobs, or an object that " +
+        'holds them under "applications" — docs/examples/jobs.example.json shows the shape.'
+    );
+  }
+  const rows = [];
+  let skipped = 0;
+  list.forEach((item) => {
+    if (!isObject(item)) {
+      skipped += 1;
+      return;
+    }
     const row = {};
-    Object.keys(item || {}).forEach((key) => {
+    Object.keys(item).forEach((key) => {
       row[canonicalKey(key)] = item[key];
     });
-    return cleanImportedRow(row);
+    const cleaned = cleanImportedRow(row);
+    if (!cleaned.company || !cleaned.role) {
+      skipped += 1;
+      return;
+    }
+    rows.push(cleaned);
   });
-  const valid = rows.filter((row) => row.company && row.role);
-  return { rows: valid, skipped: rows.length - valid.length };
+  return { rows, skipped };
 }
 
 
@@ -292,7 +355,11 @@ export async function handleImportFile(file, options) {
     const isCSV = /\.csv$/i.test(file.name) || /csv/i.test(file.type);
     const parsed = isCSV ? rowsFromCSV(text) : rowsFromJSON(text);
     if (!parsed.rows.length) {
-      throw new Error("No jobs found. A CSV needs company and role columns.");
+      throw new Error(
+        isCSV
+          ? "No jobs found. A CSV needs company and role columns."
+          : "No jobs found. Every job in a JSON file needs a company and a role."
+      );
     }
     // Postings already on the list are named before anything is written, so a
     // second import of the same file is a decision rather than a pile of copies.

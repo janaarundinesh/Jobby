@@ -472,7 +472,7 @@
           <strong>Choose a CSV or JSON file</strong>
           <span>or drag and drop it here</span>
         </label>
-        <p class="mode-hint">CSV headers like <code>company</code>, <code>role</code>, <code>status</code>, <code>phase</code>, <code>applied_on</code>, <code>source</code>, <code>location</code>, <code>salary</code>, <code>description</code> are recognised, and <code>estimated_match_pct</code> becomes the resume match. A row that names no status or phase is saved to apply, not marked as applied. <code>why_it_matches</code> and <code>important_missing_requirements</code> are kept in the notes. Existing jobs are kept; rows are appended.</p>
+        <p class="mode-hint">CSV headers like <code>company</code>, <code>role</code>, <code>status</code>, <code>phase</code>, <code>applied_on</code>, <code>source</code>, <code>location</code>, <code>salary</code>, <code>description</code> are recognised, and <code>estimated_match_pct</code> becomes the resume match. A row that names no status or phase is saved to apply, not marked as applied. <code>why_it_matches</code> and <code>important_missing_requirements</code> are kept in the notes. Existing jobs are kept; rows are appended. A JSON file can be an array of jobs, an object holding them under <code>applications</code> or <code>jobs</code>, or one job per line — each entry needs a <code>company</code> and a <code>role</code>.</p>
         <div class="mode-note" id="import-status" hidden></div>
       </div>
 

@@ -1917,3 +1917,61 @@ def test_a_document_that_vanished_offers_try_again(page):
     page.click("#preview-retry")
     page.wait_for_selector("#preview-body .preview-fallback")
     assert "Document not found" in page.inner_text("#preview-body")
+
+
+def test_a_json_file_shaped_differently_is_read_or_explained(page):
+    """A file from somewhere else rarely matches our export; it should still work."""
+    enter_profile(page)
+    page.click("#new-btn")
+    page.wait_for_selector("#modal-backdrop:not([hidden])")
+    page.click('[data-mode="file"]')
+
+    # Half a document: the message names the problem, not a parser offset.
+    page.set_input_files(
+        "#modal-import-file",
+        {"name": "jobs.json", "mimeType": "application/json", "buffer": b'{"company": "Acme",'},
+    )
+    page.wait_for_function(
+        "() => /not valid JSON/i.test(document.querySelector('#import-status').textContent)"
+    )
+
+    # A list under a key of its own — what most exports of anything look like.
+    payload = json.dumps({"jobs": [{"company": "Wrapper Co", "role": "Data Analyst"}]}).encode("utf-8")
+    page.set_input_files(
+        "#modal-import-file",
+        {"name": "jobs.json", "mimeType": "application/json", "buffer": payload},
+    )
+    page.wait_for_selector("#modal-backdrop", state="hidden")
+    page.wait_for_function(
+        "() => /Wrapper Co/.test(document.querySelector('#toapply-table-body').innerText)"
+    )
+
+    # The reader itself, for the shapes a file dialog makes awkward to stage.
+    shapes = page.evaluate(
+        """async () => {
+        const { rowsFromJSON } = await import('/js/io.js');
+        const read = (text) => {
+          try {
+            const result = rowsFromJSON(text);
+            return { companies: result.rows.map((row) => row.company), skipped: result.skipped,
+                     keys: result.rows.length ? Object.keys(result.rows[0]) : [] };
+          } catch (error) {
+            return { message: error.message };
+          }
+        };
+        return {
+          lines: read(['{"company": "A", "role": "B"}', '{"company": "C", "role": "D"}'].join(String.fromCharCode(10))),
+          single: read('{"company": "Solo", "role": "Dev"}'),
+          nested: read('[{"company": "N", "role": "R", "notes": {"deep": true}}]'),
+          nothing: read('{"hello": "world"}'),
+          mixed: read('[{"company": "N", "role": "R"}, "a string", 42]'),
+        };
+    }"""
+    )
+    assert shapes["lines"]["companies"] == ["A", "C"]
+    assert shapes["single"]["companies"] == ["Solo"]
+    # A nested object is not a value: it is dropped, never stored as "[object Object]".
+    assert "notes" not in shapes["nested"]["keys"]
+    assert "no list of jobs" in shapes["nothing"]["message"]
+    assert shapes["mixed"]["companies"] == ["N"]
+    assert shapes["mixed"]["skipped"] == 2

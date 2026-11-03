@@ -315,6 +315,7 @@ Company,Role,Phase,Status,Applied On,Location,Work Mode,Source,Salary,Match %,Jo
 - JSON accepts an array of objects or `{ "applications": [ … ] }` with the same aliases.
 - **A file from a job-search tool carries more than the posting.** `estimated_match_pct` becomes the job's **Resume match**, and `why_it_matches` / `important_missing_requirements` are written into its **notes** under those headings. `match`, `match_percentage`, `match_score` and `resume_match` also count as the match; `missing_requirements` and `gaps` as the gaps. Anything else (`rank`, `employment_type`, …) is ignored.
 - A row that cannot be used — no company or no role — is named in the import message with the reason, instead of a bare count.
+- **A JSON file is read from more shapes than the one it writes.** An array of jobs, an object holding them under `applications`, `jobs`, `items`, `data`, `results` or `rows`, a single job on its own, and one job per line all import. A field whose value is a nested object is left out rather than stored as `[object Object]`, and a file that cannot be read at all says what was wrong — invalid JSON, no list of jobs, or entries without a company and a role.
 
 **A complete example** — [`docs/examples/jobs.example.json`](docs/examples/jobs.example.json) is a real file that imports unchanged through **Add job → Import** (6 rows, none skipped). Taken row by row, it is the whole format in miniature:
 
