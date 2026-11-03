@@ -853,6 +853,13 @@
           <button type="button" class="btn btn-primary" id="settings-backup-download">Download backup (.zip)</button>
         </div>
         <p class="settings-pin-status" id="settings-backup-note">Contains the database and every uploaded document.</p>
+        <h4 class="settings-subheading">Restore a snapshot</h4>
+        <p class="mode-hint">
+          The copy Jobby takes the first time the server starts each day. Restoring puts the
+          database back to that morning; uploaded files are left as they are, and the current
+          data is kept as a snapshot of its own first.
+        </p>
+        <ul class="backup-list" id="settings-backup-list" aria-live="polite"></ul>
       </section>
       <section class="settings-block" data-settings-panel="engine" hidden>
         <h3 class="settings-heading">LaTeX engine</h3>

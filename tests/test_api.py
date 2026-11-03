@@ -1635,3 +1635,35 @@ def test_another_profile_cannot_compile_your_resume(api):
         headers={"X-Profile-Id": str(other["id"])},
     )
     assert response.status == 404
+
+
+def test_backups_can_be_listed_and_restored(api, tmp_path):
+    db_path = str(tmp_path / "tracker.db")
+    api.create(company="Before the snapshot")
+    server.backup_database(db_path)
+    api.create(company="After the snapshot")
+
+    listed = api.get("/api/backups")
+    assert listed.status == 200
+    names = [item["name"] for item in listed.data["backups"]]
+    assert names, "the snapshot jobby took is not listed"
+
+    restored = api.post("/api/backups/%s/restore" % names[0], {})
+    assert restored.status == 200
+    assert restored.data["restored"] == names[0]
+    # The database is back to the morning, not merged with what came after.
+    companies = [app["company"] for app in api.get("/api/applications").data]
+    assert companies == ["Before the snapshot"]
+    # What was replaced was copied aside, so the restore can be undone.
+    assert restored.data["safety_copy"].endswith("before-restore.db")
+    later = [item["name"] for item in api.get("/api/backups").data["backups"]]
+    assert restored.data["safety_copy"] in later
+
+
+def test_a_snapshot_name_this_app_did_not_make_is_refused(api):
+    assert api.get("/api/backups").status == 200
+    # Not a name of ours: refused before it can become a path.
+    assert api.post("/api/backups/..%2Ftracker.db/restore", {}).status == 400
+    assert api.post("/api/backups/tracker.db/restore", {}).status == 400
+    # A name of ours that is no longer on disk.
+    assert api.post("/api/backups/tracker-1999-01-01.db/restore", {}).status == 404

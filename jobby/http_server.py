@@ -18,7 +18,7 @@ import time
 from jobby.applications import clean_create, clean_patch, create_application, duplicate_jobs, get_application, get_settings, import_applications, list_applications, purge_application, purge_trash, restore_application, save_settings, soft_delete_application, update_application
 from jobby.auth import create_profile, default_profile_id, delete_profile, get_profile, list_profiles, revoke_tokens, set_profile_pin, token_is_valid, unlock_profile, update_profile
 from jobby.config import API_TOKEN, ApiError, CONTENT_TYPES, DEFAULT_DB, LOOPBACK_HOSTS, MAX_BODY, PUBLIC_DIR, content_security_policy, host_name
-from jobby.db import backup_database, build_backup_archive, connect, init_db, sent_counts
+from jobby.db import backup_database, build_backup_archive, connect, init_db, list_backups, restore_backup, sent_counts
 from jobby.documents import attach_saved_file, delete_document, delete_resume_file, documents_by_job, find_document, find_resume_file, list_saved_files, preview_format, save_document, save_resume_file
 from jobby.resumes import compile_resume, create_resume, delete_resume, engine_info, get_resume, list_resumes, start_engine_install, update_resume
 
@@ -396,6 +396,20 @@ class Handler(BaseHTTPRequestHandler):
                     archive,
                     "jobby-backup-%s.zip" % datetime.now().strftime("%Y-%m-%d"),
                 )
+
+            if parts[0] == "backups":
+                # The daily snapshots this computer already keeps, and putting
+                # one back. Restoring is a write: the guard above asked for the
+                # session token and a same-origin Origin.
+                if len(parts) == 1:
+                    if self.command != "GET":
+                        raise ApiError(405, "Method not allowed")
+                    return self.send_json({"backups": list_backups(self.db_path)})
+                if len(parts) == 3 and parts[2] == "restore":
+                    if self.command != "POST":
+                        raise ApiError(405, "Method not allowed")
+                    return self.send_json(restore_backup(self.db_path, parts[1]))
+                raise ApiError(404, "Unknown endpoint")
 
             if parts[0] == "profiles":
                 return self.profiles(parts[1:])

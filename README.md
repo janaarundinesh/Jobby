@@ -274,7 +274,7 @@ its own panel with a back arrow, and `Esc` returns to the menu before closing.
 | **Lock** | The PIN: set, change or remove, each asking for the current one. |
 | **Goals** | The daily and weekly application targets. |
 | **Reminders** | One daily notification summarising what is due. |
-| **Backup** | A zip of the database and every document. |
+| **Backup** | Download a zip of everything, or restore one of the daily snapshots. |
 | **LaTeX engine** | Whether **Compile** can build a PDF, which engine it found, and a one-click **Install Tectonic**. |
 | **Log out** | Ends the session and returns to the picker. |
 
@@ -428,6 +428,7 @@ readable translucent tints instead of flat colour.
 
 - **Automatic snapshots** — the first start each day copies the database with SQLite's own backup, so the copy is consistent while the app is open.
 - **Download a backup** — **Settings → Backup → Download backup (.zip)** saves the database together with every uploaded document and resume file, built from a fresh snapshot.
+- **Restore a snapshot** — the same panel lists the daily copies, with **Restore** beside each. It asks first, then puts the database back to that morning and keeps what was there as a snapshot of its own (named `…before-restore.db`), so the restore can be undone the same way. Uploaded files are not part of the daily snapshot, so the files on disk are left exactly as they were.
 - **Export** — **Export ▾** writes every job as JSON or CSV, including phase, description, notes and the match.
 - **Nothing is uploaded.** The only network traffic the app makes on its own is fetching a posting you paste, and downloading Tectonic if you ask for it.
 - **The local API is fenced in.** Every call must carry a loopback `Host` header (DNS rebinding), writes must come from the same origin (no cross-site posts), and every call except the health probe needs the session token from `/api/session`, which only the dashboard's origin can read. A locked profile additionally needs its unlock token, and its files are fetched with signed requests rather than plain URLs.
@@ -487,7 +488,7 @@ python3 server.py --port 8080 --open
 
 Everything the dashboard does is a JSON call against the local server, so you
 can script it. Every endpoint except `/api/profiles`, `/api/session`,
-`/api/backup` and `/api/health` works on one profile: send `X-Profile-Id: <id>`
+`/api/backup`, `/api/backups` and `/api/health` works on one profile: send `X-Profile-Id: <id>`
 to pick it (without the header the first profile is used). For a PIN-protected
 profile also send `X-Profile-Token` with the token from `/unlock`, otherwise the
 data endpoints answer `423`.
@@ -554,6 +555,9 @@ POST   /api/import                            { "applications": [ … ] }; rows 
 POST   /api/extract                           { "url": "https://…" }
 GET    /api/session                           { "token": "…" } for this run of the server
 GET    /api/backup                            a zip of the database and every document
+GET    /api/backups                           the daily snapshots this computer keeps
+POST   /api/backups/<name>/restore            put the database back to one of them; the copy
+                                              it replaces is kept as a snapshot first
 GET    /api/health                            open, no token needed
 ```
 
@@ -584,7 +588,8 @@ python3 -m pytest -q                    # API suite
 RUN_E2E=1 python3 -m pytest tests/e2e   # browser suite
 ```
 
-- **API suite** — over a hundred tests: creating and validating jobs, stage changes and their timeline events, review marks, the trash flow, document upload and inline preview with byte ranges and content-type safety, goals, imports (including the to-apply default, the notes a file folds in and the match estimate), profiles and their isolation, the PIN lock, the wait after repeated misses and unlock tokens, resumes and tailored copies, the local-only guards (foreign `Origin`, missing token, foreign `Host`, the `Content-Security-Policy` the page is served with), and the daily backup and its pruning.
+- **API suite** — over a hundred tests: creating and validating jobs, stage changes and their timeline events, review marks, the trash flow, document upload and inline preview with byte ranges and content-type safety, goals, imports (including the to-apply default, the notes a file folds in and the match estimate), profiles and their isolation, the PIN lock, the wait after repeated misses and unlock tokens, resumes and tailored copies, the local-only guards (foreign `Origin`, missing token, foreign `Host`, the `Content-Security-Policy` the page is served with), and the daily backup, restoring one of its snapshots and the pruning.
+- **Lint and types** — `ruff check .` and `mypy` hold the package to one standard, and the API suite reports coverage with `pytest --cov`. All three read `pyproject.toml`, which also records the 3.9 floor.
 - **Browser suite** — drives Chromium with Playwright: the picker, adding a job and opening its drawer, the settings walk, goals, a real backup zip, one notification a day, the dialog focus trap and keyboard sorting, a locked profile's documents and `\includegraphics` picture, previews that cannot load offering **Try again**, match bands, links in the tables, the server pill turning red and green again, and the app installing and opening offline.
 - **Launcher suite** — drives the launch scripts with stand-in tools: a crashing `python3` for the restart loop, a `swiftc` stub for the window build, and `cscript` for the Windows script in CI.
 
@@ -620,7 +625,15 @@ Jobby.app/              macOS app bundle: starts the server if needed, then open
 Jobby.vbs               Windows app: starts the server unseen, opens the dashboard in its own window
 Start Jobby.command     macOS double-click launcher (same thing, in a terminal window)
 Start Jobby.bat         Windows double-click launcher (the same window, with a visible console)
-server.py               HTTP server, JSON API, validation, SQLite schema, document storage
+server.py               The entry point (`python3 server.py`), and what the tests import
+jobby/                  The app itself, as a package
+  config.py             Shared settings, limits, field validation and the CSP
+  db.py                 Connection, schema and its numbered migrations
+  auth.py               Profiles, their PINs and the unlock tokens
+  applications.py       Jobs: validation, storage, trash and imports
+  documents.py          Uploaded files: job documents and resume support files
+  resumes.py            The editor's sources, tailored copies, the LaTeX engine
+  http_server.py        Routing, the local-only guards, the server's lifecycle
 extract.py              Job posting extraction (JSON-LD + OpenGraph, stdlib only)
 public/                 Dashboard UI: index.html, styles.css, sw.js, manifest, icons
   js/                   main.js (events and boot), core.js (state, dates, API client),
@@ -636,7 +649,7 @@ tests/                  pytest suite for the API
 data/                   Created on first run: tracker.db, uploads/ and backups/
 .githooks/              pre-commit hook that runs the suite
 .github/                CI workflows that run all three suites
-requirements-dev.txt    pytest and Playwright, only needed for the tests
+requirements-dev.txt    pytest, Playwright, ruff and mypy — only needed for the checks
 ```
 
 ## Troubleshooting

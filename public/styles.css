@@ -4152,3 +4152,52 @@ body.tab-resume .resume-view {
   .app-card,
   .doc-item { transition: none; }
 }
+
+/* Settings → Backup: the snapshots this computer keeps, each restorable. */
+.settings-subheading {
+  margin: 20px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.backup-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.backup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.backup-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.backup-date {
+  font-weight: 600;
+}
+
+.backup-meta,
+.backup-empty {
+  color: inherit;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.backup-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

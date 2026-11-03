@@ -1,7 +1,7 @@
 /* Jobby — User picker, profile switching, PIN lock and Settings.
    ES module, no build step. Open the dashboard through server.py. */
 
-import { $, $$, DEFAULT_GOALS, ICON, api, clearToken, esc, sessionToken, setToken, state, todayISO, toast, tokenFor } from "./core.js";
+import { $, $$, DEFAULT_GOALS, ICON, api, clearToken, esc, formatSize, sessionToken, setToken, state, todayISO, toast, tokenFor } from "./core.js";
 import { activeProfile, initials, loadApps, persistProfile, profileNeedsUnlock, rememberSession, renderProfileChrome } from "./data.js";
 import { confirmAction } from "./dialogs.js";
 import { closeDrawer } from "./drawer.js";
@@ -611,6 +611,7 @@ export function showSettingsView(view) {
     engine: "What the resume editor compiles with, on this computer.",
   }[target];
   if (target === "engine") refreshEngineStatus();
+  if (target === "backup") loadBackups();
   const error = $("#settings-error");
   error.hidden = true;
   error.textContent = "";
@@ -652,6 +653,67 @@ export async function downloadBackup(button) {
   } finally {
     button.disabled = false;
     button.textContent = label;
+  }
+}
+
+
+export async function loadBackups() {
+  const list = $("#settings-backup-list");
+  if (!list) return;
+  list.innerHTML = '<li class="backup-empty">Reading the snapshots on this computer…</li>';
+  try {
+    const payload = await api("/api/backups");
+    const backups = (payload && payload.backups) || [];
+    if (!backups.length) {
+      list.innerHTML =
+        '<li class="backup-empty">No snapshot yet. One is taken the first time the server starts each day.</li>';
+      return;
+    }
+    list.innerHTML = backups
+      .map(
+        (item) =>
+          '<li class="backup-row">' +
+          '<span class="backup-main">' +
+          '<span class="backup-date">' + esc(item.label || item.date) + "</span>" +
+          '<span class="backup-meta">' + esc(formatSize(item.size)) + " · " + esc(item.name) + "</span>" +
+          "</span>" +
+          '<button type="button" class="btn btn-ghost" data-restore-backup="' + esc(item.name) + '">Restore</button>' +
+          "</li>"
+      )
+      .join("");
+    $$("#settings-backup-list [data-restore-backup]").forEach((button) => {
+      button.addEventListener("click", () => restoreBackup(button));
+    });
+  } catch (error) {
+    list.innerHTML = "";
+    toast(error.message, true);
+  }
+}
+
+
+async function restoreBackup(button) {
+  const name = button.dataset.restoreBackup;
+  const ok = await confirmAction({
+    title: "Restore this snapshot?",
+    text:
+      "The database goes back to " + name + ". Uploaded files stay as they are, and the data " +
+      "you have now is kept as a snapshot first.",
+    okLabel: "Restore",
+  });
+  if (!ok) return;
+  button.disabled = true;
+  button.textContent = "Restoring…";
+  try {
+    await api("/api/backups/" + encodeURIComponent(name) + "/restore", {
+      method: "POST",
+      body: "{}",
+    });
+    toast("Restored " + name + " — reloading");
+    window.setTimeout(() => window.location.reload(), 600);
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = "Restore";
+    toast(error.message, true);
   }
 }
 

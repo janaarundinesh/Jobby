@@ -162,16 +162,16 @@ def extract_binary(archive_path, dest_dir, member_name=None):
                 data = source.read()
     else:
         with tarfile.open(archive_path, "r:*") as archive:
-            for info in archive.getmembers():
-                if info.isfile() and os.path.basename(info.name).lower() in BINARY_NAMES:
-                    candidates.append((info.name, info.size, "tar"))
+            for member in archive.getmembers():
+                if member.name and member.isfile() and os.path.basename(member.name).lower() in BINARY_NAMES:
+                    candidates.append((member.name, member.size, "tar"))
             if not candidates:
                 raise RuntimeError("No tectonic binary inside %s" % archive_path)
             name = _pick_member(candidates, member_name)
-            source = archive.extractfile(name)
-            if source is None:
+            extracted = archive.extractfile(name)
+            if extracted is None:
                 raise RuntimeError("Could not read %s" % name)
-            data = source.read()
+            data = extracted.read()
     target = os.path.join(dest_dir, os.path.basename(name))
     write_atomic(target, data)
     if not sys.platform.startswith("win"):

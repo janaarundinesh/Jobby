@@ -3,11 +3,12 @@
 from datetime import datetime
 import glob
 import os
+import re
 import sqlite3
 import tempfile
 import zipfile
 
-from jobby.config import BACKUP_KEEP, DEFAULT_PROFILE_NAME, ROOT, now_iso, today_iso
+from jobby.config import BACKUP_KEEP, DEFAULT_PROFILE_NAME, ROOT, ApiError, now_iso, today_iso
 
 
 SCHEMA = """
@@ -180,6 +181,86 @@ def prune_backups(folder, keep=BACKUP_KEEP):
             pass
 
 
+
+
+BACKUP_NAME = re.compile(r"^tracker-(\d{4}-\d{2}-\d{2})(-[\w-]+)?\.db$")
+
+
+def backups_folder(db_path):
+    return os.path.join(os.path.dirname(os.path.abspath(db_path)), "backups")
+
+
+def list_backups(db_path):
+    """The snapshots on this computer, newest first."""
+    if db_path == ":memory:":
+        return []
+    items = []
+    for path in sorted(glob.glob(os.path.join(backups_folder(db_path), "tracker-*.db")), reverse=True):
+        name = os.path.basename(path)
+        match = BACKUP_NAME.match(name)
+        if not match:
+            continue
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            continue
+        items.append(
+            {
+                "name": name,
+                "date": match.group(1),
+                "label": match.group(1)
+                + (" (before a restore)" if match.group(2) else ""),
+                "size": size,
+            }
+        )
+    return items
+
+
+def restore_backup(db_path, name):
+    """Put the database back to one of the daily snapshots.
+
+    What is being replaced is copied aside first, under a name of its own, so a
+    restore can itself be undone by restoring that copy.
+    """
+    if db_path == ":memory:" or not BACKUP_NAME.match(name or ""):
+        raise ApiError(400, "That is not a snapshot this app made")
+    folder = backups_folder(db_path)
+    path = os.path.join(folder, name)
+    if not os.path.isfile(path):
+        raise ApiError(404, "That snapshot is no longer on disk")
+    stamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
+    keeper = os.path.join(folder, "tracker-%s-before-restore.db" % stamp)
+    source = connect(db_path)
+    try:
+        copy = sqlite3.connect(keeper)
+        try:
+            source.backup(copy)
+        finally:
+            copy.close()
+    finally:
+        source.close()
+
+    snapshot = sqlite3.connect(path)
+    try:
+        target = connect(db_path)
+        try:
+            snapshot.backup(target)
+            target.commit()
+        finally:
+            target.close()
+    finally:
+        snapshot.close()
+
+    # A snapshot can predate the columns the app now uses; it is brought up to
+    # date like any other database rather than answering with a missing column.
+    conn = connect(db_path)
+    try:
+        migrate(conn)
+        conn.commit()
+    finally:
+        conn.close()
+    prune_backups(folder)
+    return {"restored": name, "safety_copy": os.path.basename(keeper)}
 
 
 def build_backup_archive(db_path):
