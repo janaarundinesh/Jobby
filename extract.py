@@ -11,6 +11,7 @@ import ipaddress
 import json
 import re
 import socket
+import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -125,6 +126,9 @@ def _connect_public(host, port, timeout, source_address=None):
 class _PinnedHTTPConnection(http.client.HTTPConnection):
     """HTTP to the validated address instead of a second lookup of the name."""
 
+    # Set by HTTPConnection.__init__; typeshed does not declare it.
+    source_address: tuple
+
     def connect(self):
         self.sock = _connect_public(
             self.host, self.port, self.timeout, self.source_address
@@ -133,6 +137,10 @@ class _PinnedHTTPConnection(http.client.HTTPConnection):
 
 class _PinnedHTTPSConnection(http.client.HTTPSConnection):
     """HTTPS to a validated address, still presenting the real host name."""
+
+    # Both are set by HTTPSConnection.__init__; typeshed does not declare them.
+    source_address: tuple
+    _context: ssl.SSLContext
 
     def connect(self):
         sock = _connect_public(
@@ -149,6 +157,8 @@ class _PinnedHTTPHandler(urllib.request.HTTPHandler):
 
 
 class _PinnedHTTPSHandler(urllib.request.HTTPSHandler):
+    _context: ssl.SSLContext
+
     def https_open(self, req):
         return self.do_open(_PinnedHTTPSConnection, req, context=self._context)
 

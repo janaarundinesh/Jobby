@@ -167,6 +167,12 @@ CREATE TABLE IF NOT EXISTS settings (
     PRIMARY KEY (profile_id, key)
 );
 
+"""
+
+# Indexes are separate from SCHEMA because several of them name columns the
+# migration steps add: on a database from an older release, creating them
+# before the steps run would ask for a column that is not there yet.
+INDEXES = """
 CREATE INDEX IF NOT EXISTS idx_events_app ON status_events(application_id);
 CREATE INDEX IF NOT EXISTS idx_apps_status ON applications(status);
 CREATE INDEX IF NOT EXISTS idx_apps_phase ON applications(phase);
@@ -428,54 +434,95 @@ def ensure_default_profile(conn):
         )
 
 
-def migrate(conn):
-    """Add columns and tables introduced after the first release."""
-    columns = {row["name"] for row in conn.execute("PRAGMA table_info(applications)")}
-    if "phase" not in columns:
-        conn.execute(
-            "ALTER TABLE applications ADD COLUMN phase TEXT NOT NULL DEFAULT 'applied'"
-        )
-    if "description" not in columns:
-        conn.execute(
-            "ALTER TABLE applications ADD COLUMN description TEXT NOT NULL DEFAULT ''"
-        )
-    if "deleted_at" not in columns:
-        conn.execute("ALTER TABLE applications ADD COLUMN deleted_at TEXT")
-    if "reviewed_at" not in columns:
-        conn.execute("ALTER TABLE applications ADD COLUMN reviewed_at TEXT")
-    if "match_pct" not in columns:
-        conn.execute("ALTER TABLE applications ADD COLUMN match_pct INTEGER")
-    if "profile_id" not in columns:
-        conn.execute(
-            "ALTER TABLE applications ADD COLUMN profile_id INTEGER NOT NULL DEFAULT 1"
-        )
-    profile_columns = {row["name"] for row in conn.execute("PRAGMA table_info(profiles)")}
-    for column in ("pin_hash", "pin_salt", "pin_set_at"):
-        if profile_columns and column not in profile_columns:
-            conn.execute("ALTER TABLE profiles ADD COLUMN %s TEXT" % column)
-    # Created here rather than in SCHEMA: older databases only gain the column above.
+def table_columns(conn, table):
+    return {row["name"] for row in conn.execute("PRAGMA table_info(%s)" % table)}
+
+
+def add_column(conn, table, column, definition):
+    """Add a column an older database is missing."""
+    if column not in table_columns(conn, table):
+        conn.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, column, definition))
+
+
+def migration_1(conn):
+    """Postings stopped being one flat list: phase, description, trash, review."""
+    for column, definition in (
+        ("phase", "TEXT NOT NULL DEFAULT 'applied'"),
+        ("description", "TEXT NOT NULL DEFAULT ''"),
+        ("deleted_at", "TEXT"),
+        ("reviewed_at", "TEXT"),
+        ("match_pct", "INTEGER"),
+    ):
+        add_column(conn, "applications", column, definition)
+
+
+def migration_2(conn):
+    """More than one person can use the app: every job belongs to a profile."""
+    add_column(conn, "applications", "profile_id", "INTEGER NOT NULL DEFAULT 1")
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_apps_profile ON applications(profile_id)"
     )
 
-    ensure_default_profile(conn)
 
-    # Settings became per-profile; rebuild the old key/value table with the
-    # existing goals copied onto the first profile.
-    setting_columns = {row["name"] for row in conn.execute("PRAGMA table_info(settings)")}
-    if setting_columns and "profile_id" not in setting_columns:
+def migration_3(conn):
+    """Profiles can be locked with a PIN."""
+    for column in ("pin_hash", "pin_salt", "pin_set_at"):
+        add_column(conn, "profiles", column, "TEXT")
+
+
+def migration_4(conn):
+    """Goals became per profile; the old key/value table is rebuilt for it."""
+    columns = table_columns(conn, "settings")
+    if not columns or "profile_id" in columns:
+        return
+    conn.execute(
+        "CREATE TABLE settings_new ("
+        " profile_id INTEGER NOT NULL DEFAULT 1,"
+        " key TEXT NOT NULL,"
+        " value TEXT NOT NULL,"
+        " PRIMARY KEY (profile_id, key))"
+    )
+    conn.execute(
+        "INSERT INTO settings_new (profile_id, key, value) SELECT 1, key, value FROM settings"
+    )
+    conn.execute("DROP TABLE settings")
+    conn.execute("ALTER TABLE settings_new RENAME TO settings")
+
+
+# Every change to the shape of the database, in the order it happened, with the
+# version that records it. A database keeps the versions it has already run, so
+# each step happens once. The steps also check what they change, because a
+# database from before schema_version existed has to start at 1 with all of
+# its columns already there.
+MIGRATIONS = [
+    (1, "phases, descriptions, trash and review marks", migration_1),
+    (2, "jobs belong to a profile", migration_2),
+    (3, "profiles carry a PIN", migration_3),
+    (4, "goals belong to a profile", migration_4),
+]
+SCHEMA_VERSION = MIGRATIONS[-1][0]
+
+
+def migrate(conn):
+    """Bring the schema up to date, one recorded step at a time."""
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS schema_version ("
+        " version INTEGER PRIMARY KEY,"
+        " name TEXT NOT NULL,"
+        " applied_at TEXT NOT NULL)"
+    )
+    applied = {
+        row["version"] for row in conn.execute("SELECT version FROM schema_version")
+    }
+    for version, name, step in MIGRATIONS:
+        if version in applied:
+            continue
+        step(conn)
         conn.execute(
-            "CREATE TABLE settings_new ("
-            " profile_id INTEGER NOT NULL DEFAULT 1,"
-            " key TEXT NOT NULL,"
-            " value TEXT NOT NULL,"
-            " PRIMARY KEY (profile_id, key))"
+            "INSERT INTO schema_version (version, name, applied_at) VALUES (?, ?, ?)",
+            (version, name, now_iso()),
         )
-        conn.execute(
-            "INSERT INTO settings_new (profile_id, key, value) SELECT 1, key, value FROM settings"
-        )
-        conn.execute("DROP TABLE settings")
-        conn.execute("ALTER TABLE settings_new RENAME TO settings")
+    ensure_default_profile(conn)
 
 
 def sent_day(value):
@@ -550,6 +597,7 @@ def init_db(db_path):
         )
         conn.executescript(SCHEMA)
         migrate(conn)
+        conn.executescript(INDEXES)
         if fresh_ledger:
             backfill_sent_log(conn)
         conn.commit()

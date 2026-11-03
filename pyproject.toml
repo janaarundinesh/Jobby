@@ -1,0 +1,34 @@
+[project]
+name = "jobby"
+description = "Jobby — a local job-application tracker"
+# 3.8 is end-of-life; 3.9 is the oldest version the app promises and the oldest
+# the test matrix runs.
+requires-python = ">=3.9"
+dependencies = []
+
+[tool.ruff]
+target-version = "py39"
+exclude = [".venv", "data", "docs", "tools", "__pycache__", "Jobby.app"]
+
+[tool.ruff.lint]
+# The default rules (syntax errors, undefined and unused names) without import
+# sorting or formatting: this is a standards-library app full of long HTML
+# strings, and a reformat would bury the history it sits in.
+select = ["E4", "E7", "E9", "F"]
+
+[tool.mypy]
+python_version = "3.9"
+files = ["extract.py"]
+check_untyped_defs = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+
+[tool.coverage.run]
+source = ["."]
+omit = [".venv/*", "tests/*", "tools/*", "docs/*", "public/*"]
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

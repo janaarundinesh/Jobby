@@ -14,7 +14,7 @@ LaTeX resume editor that compiles a real PDF.
 No account. No cloud. No build step.
 
 [![Tests](https://github.com/janaarundinesh/Jobby/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/janaarundinesh/Jobby/actions/workflows/tests.yml)
-![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-3776AB)
+![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-3776AB)
 ![No dependencies](https://img.shields.io/badge/dependencies-none-2ea44f)
 ![macOS and Windows](https://img.shields.io/badge/macOS%20%7C%20Windows-supported-8957e5)
 
@@ -49,7 +49,7 @@ No account. No cloud. No build step.
 - **One place for the whole pipeline.** Jobs you have not applied to yet are kept apart from the ones you have, and each application carries its stage, dates, contacts, documents and a timeline.
 - **A resume editor, not a folder of PDFs.** Write LaTeX with a live preview, compile it with Tectonic when you want the real file, and save the PDF straight onto a job.
 - **Built for the boring middle of a search.** Daily and weekly targets, a streak, follow-ups due, and a monthly nudge to check whether a posting still exists.
-- **Yours to run.** Python 3.8+ standard library only and plain ES modules in the browser: there is nothing to compile, bundle or update.
+- **Yours to run.** Python 3.9+ standard library only and plain ES modules in the browser: there is nothing to compile, bundle or update.
 
 ## Quick start
 

@@ -969,7 +969,7 @@ def test_daily_backup_runs_once_and_prunes(tmp_path):
 
     db_path = tmp_path / "tracker.db"
     server.init_db(str(db_path))
-    created = server.create_application(
+    server.create_application(
         str(db_path), 1, server.clean_create({"company": "Backed", "role": "Up"})
     )
     first = server.backup_database(str(db_path))
