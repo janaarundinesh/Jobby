@@ -792,6 +792,46 @@ def test_pin_lock_requires_a_valid_token(api):
     assert api.get("/api/applications", headers=unlocked).status == 423
 
 
+def test_pin_guesses_slow_down_after_a_few_misses(api, monkeypatch):
+    # Four digits are ten thousand guesses, so the wait after a miss is the
+    # lock: a handful are free, then each one costs longer than the last.
+    monkeypatch.setattr(server, "PIN_FAILURES", {})
+    profile = api.get("/api/profiles").data[0]
+    unlock = "/api/profiles/%d/unlock" % profile["id"]
+    assert api.post("/api/profiles/%d/pin" % profile["id"], {"pin": "4321"}).status == 200
+
+    for _ in range(server.PIN_FREE_ATTEMPTS):
+        assert api.post(unlock, {"pin": "0000"}).status == 401
+
+    # The miss past the free ones starts a wait, and knowing the PIN does not
+    # skip it — otherwise the wait would only slow down guesses that fail.
+    blocked = api.post(unlock, {"pin": "0000"})
+    assert blocked.status == 429
+    assert "try again in" in blocked.data["error"]
+    assert blocked.data["retry_after"] >= server.PIN_LOCK_BASE
+    assert api.post(unlock, {"pin": "4321"}).status == 429
+
+    # Once the wait is over the right PIN opens the profile again, and a
+    # success forgets the misses instead of carrying them forward.
+    server.PIN_FAILURES[profile["id"]]["until"] = 0
+    assert api.post(unlock, {"pin": "4321"}).status == 200
+    assert server.PIN_FAILURES.get(profile["id"]) is None
+
+
+def test_the_dashboard_is_served_with_a_strict_policy(api):
+    response = api.get("/")
+    assert response.status == 200
+    policy = response.headers.get("Content-Security-Policy")
+    assert policy, "the dashboard page has no Content-Security-Policy"
+    scripts = policy.split("script-src", 1)[1].split(";", 1)[0]
+    # The inline boot scripts are allowed by hash, not by opening scripts up.
+    assert "'self'" in scripts
+    assert "sha256-" in scripts
+    assert "unsafe-inline" not in scripts
+    assert "object-src 'none'" in policy
+    assert "frame-ancestors 'none'" in policy
+
+
 def test_pin_changes_and_removal_need_the_current_pin(api):
     profile = api.get("/api/profiles").data[0]
     path = "/api/profiles/%d/pin" % profile["id"]

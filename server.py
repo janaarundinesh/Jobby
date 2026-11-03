@@ -188,9 +188,35 @@ PROFILE_LIMITS = {
     "links": 400,
 }
 SETTING_LIMITS = {"daily_goal": (1, 100), "weekly_goal": (1, 100)}
+
+# The columns a partial update may set. The keys are chosen by the cleaning
+# functions; update_clause refuses anything else, so a payload field can never
+# reach a query even if a future cleaner stops filtering.
+PROFILE_COLUMNS = set(PROFILE_LIMITS)
+APPLICATION_COLUMNS = set(TEXT_LIMITS) | {
+    "status",
+    "phase",
+    "work_mode",
+    "applied_on",
+    "next_step_on",
+    "match_pct",
+    "reviewed_at",
+}
+RESUME_COLUMNS = {"source", "name", "label", "updated_at"}
+
 PIN_MIN, PIN_MAX = 4, 8
 PIN_ITERATIONS = 120000
 UNLOCK_TTL = 12 * 60 * 60  # an unlocked profile stays open for one working day
+
+# Wrong PINs are counted per profile. A four-digit PIN is only ten thousand
+# guesses, so the wait after a miss is what makes it worth anything: five are
+# free, and every one after that doubles the wait, up to a quarter of an hour.
+PIN_FREE_ATTEMPTS = 5
+PIN_LOCK_BASE = 30
+PIN_LOCK_MAX = 15 * 60
+PIN_FORGET_AFTER = 15 * 60  # a quiet spell forgets the older misses
+PIN_FAILURES = {}
+PIN_LOCK = threading.Lock()
 
 # Unlock tokens live in memory: restarting the server locks every profile again.
 UNLOCK_TOKENS = {}
@@ -208,6 +234,55 @@ CONTENT_TYPES = {
     ".woff2": "font/woff2",
 }
 
+# index.html carries two small inline scripts (the file: start screen and the
+# module loader). Their hashes are taken from the file as it is served, so
+# script-src can stay free of 'unsafe-inline'.
+INLINE_SCRIPT = re.compile(rb"<script[^>]*>(.*?)</script>", re.S)
+CSP_CACHE = {"stamp": None, "policy": None}
+
+
+def content_security_policy():
+    """What the page may load: itself, plus the two inline boot scripts."""
+    page_path = os.path.join(PUBLIC_DIR, "index.html")
+    try:
+        stat = os.stat(page_path)
+    except OSError:
+        return None
+    stamp = (stat.st_mtime_ns, stat.st_size)
+    if CSP_CACHE["stamp"] == stamp:
+        return CSP_CACHE["policy"]
+    try:
+        with open(page_path, "rb") as handle:
+            page = handle.read()
+    except OSError:
+        return None
+    hashes = [
+        "'sha256-%s'" % base64.b64encode(hashlib.sha256(body).digest()).decode("ascii")
+        for body in INLINE_SCRIPT.findall(page)
+        if body.strip()
+    ]
+    policy = "; ".join(
+        [
+            "default-src 'self'",
+            " ".join(["script-src 'self'"] + hashes),
+            # Chart geometry, match colours and cover images are inline styles.
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob:",
+            "font-src 'self'",
+            "connect-src 'self'",
+            # The PDF preview is a blob: document inside an iframe.
+            "frame-src 'self' blob:",
+            "worker-src 'self'",
+            "object-src 'none'",
+            "base-uri 'none'",
+            "form-action 'self'",
+            "frame-ancestors 'none'",
+        ]
+    )
+    CSP_CACHE["stamp"] = stamp
+    CSP_CACHE["policy"] = policy
+    return policy
+
 
 class ApiError(Exception):
     def __init__(self, status, message, extra=None):
@@ -224,6 +299,20 @@ def now_iso():
 
 def today_iso():
     return datetime.now().strftime("%Y-%m-%d")
+
+
+def update_clause(data, allowed):
+    """The SET clause of a partial update, from named columns only.
+
+    The values are bound placeholders, so a key is the only way a caller could
+    shape one of these statements. The keys come from the cleaning functions;
+    this check keeps that true if one of them ever starts passing a payload
+    field straight through.
+    """
+    unknown = [key for key in data if key not in allowed]
+    if unknown:
+        raise ApiError(500, "Internal error: cannot save %s" % unknown[0])
+    return ", ".join("%s = ?" % key for key in data)
 
 
 def connect(db_path):
@@ -546,6 +635,48 @@ def token_is_valid(token, profile_id):
         return entry["profile_id"] == profile_id
 
 
+def pin_wait(profile_id):
+    """Seconds left on this profile's lockout; 0 when a PIN may be tried."""
+    with PIN_LOCK:
+        entry = PIN_FAILURES.get(profile_id)
+        if not entry:
+            return 0
+        return max(0, int(entry["until"] - time.time() + 0.999))
+
+
+def record_pin_miss(profile_id):
+    """Count a wrong PIN and start, or extend, the wait it earns."""
+    now = time.time()
+    with PIN_LOCK:
+        entry = PIN_FAILURES.get(profile_id)
+        if not entry or now - entry["last"] > PIN_FORGET_AFTER:
+            entry = {"count": 0, "last": now, "until": 0.0}
+        entry["count"] += 1
+        entry["last"] = now
+        if entry["count"] > PIN_FREE_ATTEMPTS:
+            steps = entry["count"] - PIN_FREE_ATTEMPTS - 1
+            entry["until"] = now + min(PIN_LOCK_BASE * (2 ** steps), PIN_LOCK_MAX)
+        PIN_FAILURES[profile_id] = entry
+        return max(0, int(entry["until"] - now + 0.999))
+
+
+def forget_pin_misses(profile_id):
+    with PIN_LOCK:
+        PIN_FAILURES.pop(profile_id, None)
+
+
+def pin_miss_error(seconds):
+    if seconds <= 0:
+        return ApiError(401, "That PIN is not correct")
+    minutes = max(1, (seconds + 59) // 60)
+    return ApiError(
+        429,
+        "Too many wrong PINs — try again in %d minute%s"
+        % (minutes, "" if minutes == 1 else "s"),
+        {"retry_after": seconds},
+    )
+
+
 def revoke_tokens(profile_id):
     with TOKEN_LOCK:
         for token in [
@@ -565,8 +696,12 @@ def unlock_profile(db_path, profile_id, payload):
         raise ApiError(404, "Profile not found")
     if not row["pin_hash"]:
         raise ApiError(400, "This profile has no PIN")
+    wait = pin_wait(profile_id)
+    if wait:
+        raise pin_miss_error(wait)
     if not check_pin(row, pin.strip() if isinstance(pin, str) else ""):
-        raise ApiError(401, "That PIN is not correct")
+        raise pin_miss_error(record_pin_miss(profile_id))
+    forget_pin_misses(profile_id)
     return {"token": issue_token(profile_id), "profile": profile_dict(row)}
 
 
@@ -593,6 +728,7 @@ def set_profile_pin(db_path, profile_id, payload):
             )
             conn.commit()
             revoke_tokens(profile_id)
+            forget_pin_misses(profile_id)
             return {"locked": False}
         pin = clean_pin(payload.get("pin"))
         salt = secrets.token_hex(16)
@@ -604,6 +740,7 @@ def set_profile_pin(db_path, profile_id, payload):
         )
         conn.commit()
         # Whoever just proved (or set) the PIN stays in without being asked again.
+        forget_pin_misses(profile_id)
         return {"locked": True, "token": issue_token(profile_id)}
     finally:
         conn.close()
@@ -700,7 +837,7 @@ def update_profile(db_path, profile_id, payload):
             raise ApiError(404, "Profile not found")
         if not data:
             return profile_dict(row)
-        assignments = ", ".join("%s = ?" % key for key in data.keys())
+        assignments = update_clause(data, PROFILE_COLUMNS)
         conn.execute(
             "UPDATE profiles SET %s, updated_at = ? WHERE id = ?" % assignments,
             list(data.values()) + [now_iso(), profile_id],
@@ -761,6 +898,7 @@ def delete_profile(db_path, profile_id):
     finally:
         conn.close()
     revoke_tokens(profile_id)
+    forget_pin_misses(profile_id)
     for app_id in ids:
         shutil.rmtree(os.path.join(uploads_root(db_path), str(app_id)), ignore_errors=True)
     for resume_id in resume_ids:
@@ -1108,7 +1246,7 @@ def update_application(db_path, profile_id, app_id, data):
         elif "phase" in data or "applied_on" in data:
             if not data.get("applied_on"):
                 data["applied_on"] = current["applied_on"] or today_iso()
-        assignments = ", ".join("%s = ?" % key for key in data.keys())
+        assignments = update_clause(data, APPLICATION_COLUMNS)
         conn.execute(
             "UPDATE applications SET %s, updated_at = ? WHERE id = ?" % assignments,
             list(data.values()) + [stamp, app_id],
@@ -2047,18 +2185,26 @@ def compile_resume(db_path, profile_id, resume_id, payload):
         # has to resolve against the file as the user wrote it.
         conn = connect(db_path)
         try:
+            # Newest first, and one copy per name: two uploads called photo.png
+            # would otherwise overwrite each other, and whichever the user just
+            # replaced is the one the .tex should get.
             files = conn.execute(
-                "SELECT filename, stored_name FROM resume_files WHERE resume_id = ?",
+                "SELECT filename, stored_name FROM resume_files"
+                " WHERE resume_id = ? ORDER BY uploaded_at DESC, id DESC",
                 (resume_id,),
             ).fetchall()
         finally:
             conn.close()
         folder = resume_file_folder(db_path, resume_id)
+        copied = set()
         for row in files:
-            source_path = os.path.join(folder, row["stored_name"])
             safe_name = os.path.basename(row["filename"])
-            if safe_name and os.path.exists(source_path):
+            if not safe_name or safe_name in (".", "..") or safe_name in copied:
+                continue
+            source_path = os.path.join(folder, row["stored_name"])
+            if os.path.exists(source_path):
                 shutil.copyfile(source_path, os.path.join(workdir, safe_name))
+                copied.add(safe_name)
 
         main = os.path.join(workdir, "resume.tex")
         with open(main, "w", encoding="utf-8") as handle:
@@ -2252,7 +2398,7 @@ def update_resume(db_path, profile_id, resume_id, payload):
         ).fetchone()
         if row is None:
             raise ApiError(404, "Resume not found")
-        assignments = ", ".join("%s = ?" % key for key in updates)
+        assignments = update_clause(updates, RESUME_COLUMNS)
         conn.execute(
             "UPDATE resumes SET %s WHERE id = ?" % assignments,
             list(updates.values()) + [resume_id],
@@ -2621,6 +2767,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        if content_type.startswith("text/html"):
+            policy = content_security_policy()
+            if policy:
+                self.send_header("Content-Security-Policy", policy)
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)

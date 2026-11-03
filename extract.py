@@ -6,6 +6,7 @@ Standard library only; no external services.
 """
 
 import html
+import http.client
 import ipaddress
 import json
 import re
@@ -65,19 +66,27 @@ def _clean_text(value, limit):
     return value[:limit]
 
 
-def _is_public_host(hostname):
+def _public_addresses(hostname):
+    """The public addresses a host resolves to, each one listed once.
+
+    The caller dials an address from this list rather than looking the name up
+    again, so a host that answers differently the second time — the trick behind
+    DNS rebinding — cannot steer the request at a private address after the
+    check has passed.
+    """
     if not hostname:
-        return False
+        raise ExtractionError("That host cannot be fetched from this app.")
     try:
-        addresses = socket.getaddrinfo(hostname, None)
+        infos = socket.getaddrinfo(hostname, None, proto=socket.IPPROTO_TCP)
     except socket.gaierror:
         raise ExtractionError("Could not resolve that URL's host.")
-    for info in addresses:
+    addresses = []
+    for info in infos:
         address = info[4][0]
         try:
             ip = ipaddress.ip_address(address)
         except ValueError:
-            return False
+            raise ExtractionError("That host cannot be fetched from this app.")
         if (
             ip.is_private
             or ip.is_loopback
@@ -86,8 +95,62 @@ def _is_public_host(hostname):
             or ip.is_multicast
             or ip.is_unspecified
         ):
-            return False
+            raise ExtractionError("That host cannot be fetched from this app.")
+        if address not in addresses:
+            addresses.append(address)
+    if not addresses:
+        raise ExtractionError("Could not resolve that URL's host.")
+    return addresses
+
+
+def _is_public_host(hostname):
+    try:
+        _public_addresses(hostname)
+    except ExtractionError:
+        return False
     return True
+
+
+def _connect_public(host, port, timeout, source_address=None):
+    """Open a socket to an address that already passed the check."""
+    problem = None
+    for address in _public_addresses(host):
+        try:
+            return socket.create_connection((address, port), timeout, source_address)
+        except OSError as error:
+            problem = error
+    raise ExtractionError("Could not reach that link: %s" % (problem or host))
+
+
+class _PinnedHTTPConnection(http.client.HTTPConnection):
+    """HTTP to the validated address instead of a second lookup of the name."""
+
+    def connect(self):
+        self.sock = _connect_public(
+            self.host, self.port, self.timeout, self.source_address
+        )
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """HTTPS to a validated address, still presenting the real host name."""
+
+    def connect(self):
+        sock = _connect_public(
+            self.host, self.port, self.timeout, self.source_address
+        )
+        # The certificate is checked against the name the user typed, not the
+        # address that name happened to resolve to.
+        self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+
+
+class _PinnedHTTPHandler(urllib.request.HTTPHandler):
+    def http_open(self, req):
+        return self.do_open(_PinnedHTTPConnection, req)
+
+
+class _PinnedHTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_PinnedHTTPSConnection, req, context=self._context)
 
 
 class _RedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -104,8 +167,9 @@ def fetch_page(url):
     parsed = urllib.parse.urlparse(url.strip())
     if parsed.scheme not in ("http", "https"):
         raise ExtractionError("Enter a full http:// or https:// job posting URL.")
-    if not parsed.hostname or not _is_public_host(parsed.hostname):
+    if not parsed.hostname:
         raise ExtractionError("That host cannot be fetched from this app.")
+    _public_addresses(parsed.hostname)
     request = urllib.request.Request(
         url.strip(),
         headers={
@@ -114,7 +178,11 @@ def fetch_page(url):
             "Accept-Language": "en-US,en;q=0.9",
         },
     )
-    opener = urllib.request.build_opener(_RedirectHandler)
+    # The pinned handlers keep urllib from resolving the name a second time
+    # inside the connection, which is where a rebinding host would get in.
+    opener = urllib.request.build_opener(
+        _PinnedHTTPHandler, _PinnedHTTPSHandler, _RedirectHandler
+    )
     try:
         with opener.open(request, timeout=TIMEOUT_SECONDS) as response:
             content_type = response.headers.get("Content-Type", "")

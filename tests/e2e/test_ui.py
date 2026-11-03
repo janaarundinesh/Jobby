@@ -402,7 +402,7 @@ def test_dialogs_trap_focus_and_headers_sort_by_keyboard(page):
     page.click("#settings-close")
     page.wait_for_selector("#settings-backdrop", state="hidden")
     assert page.locator("main.page").get_attribute("inert") is None
-    page.wait_for_function("document.activeElement.id === 'settings-btn'")
+    page.wait_for_function("() => document.activeElement.id === 'settings-btn'")
 
     page.click('[data-tab="to_apply"]')
     page.wait_for_selector("#toapply-table-shell:not([hidden])")
@@ -456,7 +456,7 @@ def test_skip_link_and_delete_confirmation(page):
     page.keyboard.press("Tab")
     assert page.evaluate("document.activeElement.className") == "skip-link"
     page.wait_for_function(
-        "document.activeElement.classList.contains('skip-link') &&"
+        "() => document.activeElement.classList.contains('skip-link') &&"
         " document.activeElement.getBoundingClientRect().top >= 0"
     )
 
@@ -477,7 +477,7 @@ def test_skip_link_and_delete_confirmation(page):
     page.wait_for_selector(".confirm-backdrop", state="detached")
     assert page.locator("main.page").get_attribute("inert") is None
     assert page.locator("#applied-table-body tr").count() == 1
-    page.wait_for_function("document.activeElement.dataset.action === 'delete'")
+    page.wait_for_function("() => document.activeElement.dataset.action === 'delete'")
 
 
 def test_dashboard_is_installable(page):
