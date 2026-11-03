@@ -24,6 +24,8 @@ const rs = {
   confirmingDelete: false,
   previewTimer: null,
   issueCount: 0,
+  // The last compile error, kept while it still describes the source on screen.
+  compileLog: null,
   // The last real PDF from a LaTeX engine, while it still matches the source.
   pdf: null,
 };
@@ -65,6 +67,7 @@ export function resetResumeState() {
   rs.loading = false;
   rs.renderedId = null;
   rs.draft = "";
+  rs.compileLog = null;
   clearPdf();
 }
 
@@ -81,6 +84,7 @@ export async function openResume(id, options) {
     }
     rs.activeId = id;
     rs.renderedId = null;
+    rs.compileLog = null;
     if (!rs.tabs.includes(id)) rs.tabs.push(id);
     rs.confirmingDelete = false;
     if (settings.render !== false) {
@@ -396,7 +400,17 @@ function renderPreview() {
   hydrateResumeImages();
   applyZoom();
   renderGutter();
-  renderIssues(result.issues);
+  // A compile error outlives the preview render that follows it: an edit
+  // schedules a preview 180 ms later, and that render used to wipe the panel
+  // holding the reason the PDF is missing. The log is remembered against the
+  // source it failed on, so it stays until that source changes or a compile
+  // succeeds.
+  if (rs.compileLog && rs.compileLog.source === rs.draft) {
+    paintCompileLog(rs.compileLog.title, rs.compileLog.log);
+  } else {
+    rs.compileLog = null;
+    renderIssues(result.issues);
+  }
   rs.issueCount = result.issues.length;
   const compile = $("#resume-compile");
   if (compile) compile.dataset.ms = String(Math.round(performance.now() - started));
@@ -470,13 +484,19 @@ function showPdf(result, doc, source) {
 }
 
 
-function renderCompileLog(title, log) {
+function paintCompileLog(title, log) {
   const box = $("#resume-issues");
   if (!box) return;
   box.hidden = false;
   box.innerHTML =
     '<strong class="resume-issues-title">' + esc(title || "LaTeX error") + "</strong>" +
     (log ? '<pre class="resume-log">' + esc(log) + "</pre>" : "");
+}
+
+
+function renderCompileLog(title, log) {
+  rs.compileLog = { title: title, log: log, source: rs.draft };
+  paintCompileLog(title, log);
 }
 
 
@@ -914,8 +934,11 @@ export function bindResumeEvents() {
         toast("The source changed while compiling — compile again", true);
         return;
       }
+      // A real PDF supersedes whatever the last failure said.
+      rs.compileLog = null;
       showPdf(result, doc, source);
       renderSavePdfButton();
+      renderPreview();
       setStatus(
         result.engine + " · PDF in " + (Number(result.elapsed_ms || 0) / 1000).toFixed(2) + " s"
       );
