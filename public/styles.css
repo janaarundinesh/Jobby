@@ -212,11 +212,15 @@ body.no-scroll { overflow: hidden; }
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(180deg, rgba(246, 248, 254, 0.45), rgba(236, 240, 250, 0.6) 58%, rgba(232, 236, 247, 0.72)),
+    linear-gradient(180deg, rgba(248, 250, 255, 0.3), rgba(238, 242, 251, 0.42) 55%, rgba(232, 236, 247, 0.62)),
     url("/img/living-room.jpg");
   background-position: center, center;
   background-size: cover, cover;
   background-repeat: no-repeat, no-repeat;
+  /* A little softness keeps the room reading as light rather than as detail
+     competing with the type, and hides the smear of a photo scaled up. */
+  filter: blur(2px) saturate(1.06);
+  transform: scale(1.03);
   pointer-events: none;
 }
 
