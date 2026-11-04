@@ -96,35 +96,39 @@
   --glass-sheen: linear-gradient(155deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.4) 46%, rgba(255, 255, 255, 0.06) 74%);
   --glass-blur: 26px;
   --glass-sat: 160%;
-  /* White glass over a photograph loses contrast in a hurry, so the light theme
-     still keeps its panes denser than the dark one — but only far enough to
-     hold body text, no further: the point of the photograph is to be seen
-     through the pane, not behind it. */
-  --lg-fill: rgba(255, 255, 255, 0.58);
-  --lg-fill-strong: rgba(255, 255, 255, 0.84);
-  --lg-fill-soft: rgba(255, 255, 255, 0.42);
+  /* Glass over a photograph has to be thin enough to be seen through and opaque
+     enough to hold body text. These fills are the meeting point: a pane lifts
+     the backdrop by roughly a third rather than covering it, and the surfaces
+     read at length keep a good deal more of their own colour. */
+  --lg-fill: rgba(255, 255, 255, 0.42);
+  --lg-fill-strong: rgba(255, 255, 255, 0.68);
+  --lg-fill-soft: rgba(255, 255, 255, 0.3);
   --lg-edge: rgba(255, 255, 255, 0.92);
   --lg-edge-top: rgba(255, 255, 255, 1);
   --lg-edge-bottom: rgba(17, 24, 39, 0.06);
   --lg-lens:
-    radial-gradient(128% 92% at 10% -18%, rgba(255, 255, 255, 0.85), transparent 58%),
-    radial-gradient(96% 84% at 94% 116%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 64%),
-    linear-gradient(158deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.08) 48%, rgba(255, 255, 255, 0.3));
+    radial-gradient(128% 92% at 10% -18%, rgba(255, 255, 255, 0.34), transparent 56%),
+    radial-gradient(96% 84% at 94% 116%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 64%),
+    linear-gradient(158deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.02) 48%, rgba(255, 255, 255, 0.12));
   --lg-rim:
     inset 0 1px 0 var(--lg-edge-top),
     inset 0 0 0 1px rgba(255, 255, 255, 0.6),
     inset 0 -1px 0 var(--lg-edge-bottom);
   --lg-lift: 0 28px 54px -38px rgba(24, 34, 64, 0.5), 0 10px 22px -20px rgba(24, 34, 64, 0.24);
-  --lg-blur: 40px;
-  --lg-sat: 170%;
-  --lg-bright: 1.04;
-  --lg-text-shadow: none;
+  /* 18px is enough to keep type legible over the room and little enough that
+     the room is still a room: at 40px every pane became a white smear. */
+  --lg-blur: 18px;
+  --lg-sat: 155%;
+  --lg-bright: 1.03;
+  --lg-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.7);
   --lg-radius: 26px;
   --wash: rgba(17, 24, 39, 0.045);
   --scrim: rgba(24, 30, 46, 0.26);
   --text: #101622;
-  --text-dim: #414b5f;
-  --text-faint: #5a6478;
+  --text-dim: #3b4457;
+  /* One step darker than it was: at 11px over a photograph, a faint grey has
+     nothing to hold on to. */
+  --text-faint: #4c5567;
   --accent: #4c60e2;
   --accent-strong: #3a4ed4;
   --accent-ink: #ffffff;
@@ -214,17 +218,21 @@ body.no-scroll { overflow: hidden; }
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(180deg, rgba(248, 250, 255, 0.3), rgba(238, 242, 251, 0.42) 55%, rgba(232, 236, 247, 0.62)),
+    linear-gradient(180deg, rgba(248, 250, 255, 0.08), rgba(238, 242, 251, 0.12) 55%, rgba(232, 236, 247, 0.24)),
     url("/img/living-room.jpg");
   background-position: center, center;
   background-size: cover, cover;
   background-repeat: no-repeat, no-repeat;
   /* A little softness keeps the room reading as light rather than as detail
      competing with the type, and hides the smear of a photo scaled up. */
-  filter: blur(2px) saturate(1.06);
+  /* The room is a very bright photograph. Glass over it needs the backdrop to
+     carry a little weight, or every pane dissolves into the white. */
+  filter: brightness(0.94) contrast(1.04) saturate(1.12);
   transform: scale(1.03);
   pointer-events: none;
 }
+
+[data-theme="light"] body { text-shadow: var(--lg-text-shadow); }
 
 a { color: inherit; }
 
