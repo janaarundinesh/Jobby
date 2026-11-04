@@ -1019,11 +1019,11 @@ def test_installable_app_assets_are_served(api):
     # The light theme's backdrop is a photograph. It has to go out as an image,
     # and it has to be in the shell's cache list, or the theme loses its
     # background the moment the dashboard is opened offline.
-    photo = api.get("/img/living-room.jpg")
+    photo = api.get("/img/car.jpg")
     assert photo.status == 200
     assert photo.headers["Content-Type"] == "image/jpeg"
     assert photo.body[:3] == b"\xff\xd8\xff", "not a JPEG"
-    assert b"/img/living-room.jpg" in worker.body
+    assert b"/img/car.jpg" in worker.body
 
 
 PNG = base64.b64decode(

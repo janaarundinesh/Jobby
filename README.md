@@ -671,3 +671,6 @@ The screenshots use an invented profile and made-up applications, so no real
 person's search is in this repository. The company names appear because postings
 have company names; nothing in the images is a real application.
 
+## Credits
+
+- Light-mode backdrop: a photograph of a turquoise classic car on the Malecón in Havana by <a href="//commons.wikimedia.org/wiki/User:Ezarate" title, CC BY-SA 4.0, via Wikimedia Commons <https://commons.wikimedia.org/wiki/File:AvMalecon-LaHabanaCuba-04735.jpg>. Resized and re-encoded for the dashboard.

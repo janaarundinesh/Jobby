@@ -9,7 +9,7 @@ const SHELL = [
   "/",
   "/index.html",
   "/styles.css",
-  "/img/living-room.jpg",
+  "/img/car.jpg",
   "/manifest.webmanifest",
   "/favicon.svg",
   "/icon-192.png",

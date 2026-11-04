@@ -215,14 +215,14 @@ body.no-scroll { overflow: hidden; }
    read as glass and the text on them keeps its contrast. Dark mode keeps the
    plain colour field — over near-black a photograph only reads as noise. The
    picture is served from the app's own folder, so there is no external request
-   and the shell ships it for offline use. Source: https://www.rawpixel.com/image/6043312/photo-image-public-domain-table-living-room (CC0). */
+   and the shell ships it for offline use. Source: https://commons.wikimedia.org/wiki/File:AvMalecon-LaHabanaCuba-04735.jpg (CC BY-SA 4.0, <a href="//commons.wikimedia.org/wiki/User:Ezarate" title). */
 [data-theme="light"] .ambient::after {
   content: "";
   position: absolute;
   inset: 0;
   background-image:
     linear-gradient(180deg, rgba(248, 250, 255, 0.08), rgba(238, 242, 251, 0.12) 55%, rgba(232, 236, 247, 0.24)),
-    url("/img/living-room.jpg");
+    url("/img/car.jpg");
   background-position: center, center;
   background-size: cover, cover;
   background-repeat: no-repeat, no-repeat;
