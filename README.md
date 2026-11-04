@@ -673,4 +673,4 @@ have company names; nothing in the images is a real application.
 
 ## Credits
 
-- Light-mode backdrop: a photograph of a turquoise classic car on the Malecón in Havana by <a href="//commons.wikimedia.org/wiki/User:Ezarate" title, CC BY-SA 4.0, via Wikimedia Commons <https://commons.wikimedia.org/wiki/File:AvMalecon-LaHabanaCuba-04735.jpg>. Resized and re-encoded for the dashboard.
+- Light-mode backdrop: a photograph of a turquoise classic car on the Malecón in Havana by Ezerate (Wikimedia Commons), CC BY-SA 4.0, <https://commons.wikimedia.org/wiki/File:AvMalecon-LaHabanaCuba-04735.jpg>. Resized and re-encoded for the dashboard.
