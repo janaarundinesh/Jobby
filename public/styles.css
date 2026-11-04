@@ -96,11 +96,13 @@
   --glass-sheen: linear-gradient(155deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.4) 46%, rgba(255, 255, 255, 0.06) 74%);
   --glass-blur: 26px;
   --glass-sat: 160%;
-  /* White glass over a pastel backdrop loses contrast in a hurry, so the light
-     theme keeps its panes a good deal more solid than the dark one. */
-  --lg-fill: rgba(255, 255, 255, 0.74);
-  --lg-fill-strong: rgba(255, 255, 255, 0.92);
-  --lg-fill-soft: rgba(255, 255, 255, 0.55);
+  /* White glass over a photograph loses contrast in a hurry, so the light theme
+     still keeps its panes denser than the dark one — but only far enough to
+     hold body text, no further: the point of the photograph is to be seen
+     through the pane, not behind it. */
+  --lg-fill: rgba(255, 255, 255, 0.58);
+  --lg-fill-strong: rgba(255, 255, 255, 0.84);
+  --lg-fill-soft: rgba(255, 255, 255, 0.42);
   --lg-edge: rgba(255, 255, 255, 0.92);
   --lg-edge-top: rgba(255, 255, 255, 1);
   --lg-edge-bottom: rgba(17, 24, 39, 0.06);
@@ -4129,6 +4131,85 @@ body.tab-resume .resume-view {
   background-color: color-mix(in srgb, var(--bg) 62%, transparent);
   border-bottom-color: var(--lg-edge);
 }
+
+/* Controls carry one short label each, so their pane can be thin and the blur
+   light: a wall of 44px blur behind every button is weight without a reward.
+   The accent buttons keep their own fills and the selects keep their chevron
+   background-image — only the neutral ones take the glass. */
+.btn:not(.btn-primary):not(.btn-danger):not(.btn-ghost):not(.btn-icon),
+.search,
+.select,
+.field input,
+.field textarea,
+.view-switch,
+.mode-btn.is-active,
+.view-btn.is-active,
+.picker-kind,
+.prompt-input,
+.dup-item,
+.settings-icon,
+.doc-icon,
+.card-delete,
+.card-step,
+.resume-zoom button,
+.resume-upload,
+.skip-link,
+kbd {
+  background-color: var(--lg-fill-soft);
+  border: 1px solid var(--lg-edge);
+  box-shadow: inset 0 1px 0 var(--lg-edge-top), 0 10px 22px -22px rgba(0, 0, 0, 0.7);
+  -webkit-backdrop-filter: blur(16px) saturate(170%) brightness(var(--lg-bright));
+  backdrop-filter: blur(16px) saturate(170%) brightness(var(--lg-bright));
+}
+
+/* The dashed drop target keeps its dashed edge; only the pane behind it changes. */
+.dropzone {
+  background-color: var(--lg-fill-soft);
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  backdrop-filter: blur(16px) saturate(170%);
+}
+
+.btn-icon:hover { background: var(--lg-fill-soft); }
+.btn-ghost:hover { background: var(--lg-fill-soft); }
+
+/* Fine marks — counts, chips, pills, stage tags — are too small to be worth a
+   blur of their own. They take the material's rim instead, which is what reads
+   at this size, and sit on the pane rather than in front of it. */
+.tab-count,
+.col-count,
+.source-chip,
+.server-status,
+.profile-chip,
+.status-pill,
+.match-badge,
+.review-flag,
+.follow-due,
+.stage-select,
+.col-dot,
+.streak-dot {
+  box-shadow: inset 0 1px 0 var(--lg-edge-top), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* The header and the section menu are the two panes that are always on screen,
+   so they follow the same recipe as the rest instead of their own mixes. */
+.chrome {
+  background-color: var(--lg-fill);
+  background-image: var(--lg-lens);
+  border-bottom: 1px solid var(--lg-edge);
+  box-shadow: inset 0 1px 0 var(--lg-edge-top), 0 18px 40px -34px rgba(0, 0, 0, 0.8);
+  -webkit-backdrop-filter: blur(38px) saturate(var(--lg-sat)) brightness(var(--lg-bright));
+  backdrop-filter: blur(38px) saturate(var(--lg-sat)) brightness(var(--lg-bright));
+}
+
+/* Column headings are sticky over the rows they describe, so they get a pane
+   dense enough to read a sort label through without smearing the row beneath. */
+.apps-table thead th { background-color: var(--lg-fill); }
+
+.tabs { background-color: var(--lg-fill); }
+.tab.is-active { background-color: var(--lg-fill-strong); }
+
+.resume-tabs-bar,
+.resume-bar { background-color: color-mix(in srgb, var(--lg-fill) 78%, transparent); }
 
 /* Headings and the big numbers sit near the lens's bright edge, which is the
    one spot a coloured backdrop can wash a word out. A whisper of shadow under
