@@ -96,39 +96,42 @@
   --glass-sheen: linear-gradient(155deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.4) 46%, rgba(255, 255, 255, 0.06) 74%);
   --glass-blur: 26px;
   --glass-sat: 160%;
-  /* Glass over a photograph has to be thin enough to be seen through and opaque
-     enough to hold body text. These fills are the meeting point: a pane lifts
-     the backdrop by roughly a third rather than covering it, and the surfaces
-     read at length keep a good deal more of their own colour. */
-  --lg-fill: rgba(255, 255, 255, 0.42);
-  --lg-fill-strong: rgba(255, 255, 255, 0.68);
-  --lg-fill-soft: rgba(255, 255, 255, 0.3);
+  /* Thin glass. A pane now lifts the backdrop by a quarter rather than covering
+     it, and leans on its rim and its shadow for definition, because the fill
+     does almost none of that work any more. Detached surfaces and text read at
+     length keep a denser fill: they can land over anything. */
+  --lg-fill: rgba(246, 249, 255, 0.3);
+  --lg-fill-strong: rgba(250, 252, 255, 0.58);
+  --lg-fill-soft: rgba(246, 249, 255, 0.18);
   --lg-edge: rgba(255, 255, 255, 0.92);
   --lg-edge-top: rgba(255, 255, 255, 1);
   --lg-edge-bottom: rgba(17, 24, 39, 0.06);
   --lg-lens:
-    radial-gradient(128% 92% at 10% -18%, rgba(255, 255, 255, 0.34), transparent 56%),
+    radial-gradient(128% 92% at 10% -18%, rgba(255, 255, 255, 0.26), transparent 54%),
     radial-gradient(96% 84% at 94% 116%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 64%),
-    linear-gradient(158deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.02) 48%, rgba(255, 255, 255, 0.12));
+    linear-gradient(158deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.01) 48%, rgba(255, 255, 255, 0.07));
   --lg-rim:
     inset 0 1px 0 var(--lg-edge-top),
     inset 0 0 0 1px rgba(255, 255, 255, 0.6),
     inset 0 -1px 0 var(--lg-edge-bottom);
-  --lg-lift: 0 28px 54px -38px rgba(24, 34, 64, 0.5), 0 10px 22px -20px rgba(24, 34, 64, 0.24);
-  /* 18px is enough to keep type legible over the room and little enough that
-     the room is still a room: at 40px every pane became a white smear. */
-  --lg-blur: 18px;
-  --lg-sat: 155%;
-  --lg-bright: 1.03;
-  --lg-text-shadow: 0 1px 2px rgba(255, 255, 255, 0.7);
+  /* A nearly colourless pane has to be separated from the backdrop by shadow
+     rather than by fill. */
+  --lg-lift: 0 26px 52px -34px rgba(24, 34, 64, 0.58), 0 8px 18px -14px rgba(24, 34, 64, 0.3);
+  /* Frosted rather than milky: the blur softens detail and the saturation pulls
+     the colour of the room back through it, which is what reads as glass.
+     Transparency on its own just gives a grey wash. */
+  --lg-blur: 26px;
+  --lg-sat: 205%;
+  --lg-bright: 1.06;
+  --lg-text-shadow: 0 1px 3px rgba(255, 255, 255, 0.95), 0 0 2px rgba(255, 255, 255, 0.8);
   --lg-radius: 26px;
   --wash: rgba(17, 24, 39, 0.045);
   --scrim: rgba(24, 30, 46, 0.26);
   --text: #101622;
-  --text-dim: #3b4457;
-  /* One step darker than it was: at 11px over a photograph, a faint grey has
-     nothing to hold on to. */
-  --text-faint: #4c5567;
+  --text-dim: #2f3847;
+  /* Thin glass leaves the labels to carry their own contrast: at 11px over a
+     photograph a faint grey simply disappears. */
+  --text-faint: #3c4453;
   --accent: #4c60e2;
   --accent-strong: #3a4ed4;
   --accent-ink: #ffffff;
@@ -232,7 +235,19 @@ body.no-scroll { overflow: hidden; }
   pointer-events: none;
 }
 
-[data-theme="light"] body { text-shadow: var(--lg-text-shadow); }
+/* Only strings that sit straight on the photograph take the halo. Inherited
+   from the root it reached every label — and at 11px a 3px white glow blurs the
+   glyphs it was meant to lift — and behind the gradient-clipped wordmark it
+   painted as a white smear. Panes and buttons do not need it: their fill and
+   their rim already separate them from the backdrop. */
+[data-theme="light"] .page h1,
+[data-theme="light"] .welcome h1,
+[data-theme="light"] .section-sub,
+[data-theme="light"] .range-note { text-shadow: var(--lg-text-shadow); }
+
+/* The wordmark clips a gradient to the letters, so a shadow behind it is a
+   blur of white, not a shadow. It keeps none. */
+[data-theme="light"] .brand-text strong { text-shadow: none; }
 
 a { color: inherit; }
 
@@ -4112,6 +4127,10 @@ body.tab-resume .resume-view {
 .file-guard-cmd {
   background-color: var(--lg-fill-strong);
   background-image: none;
+  /* No lens over the letters, but the blur stays: it is what lets these panes
+     be more transparent than they used to be and still be read. */
+  -webkit-backdrop-filter: blur(18px) saturate(var(--lg-sat));
+  backdrop-filter: blur(18px) saturate(var(--lg-sat));
 }
 
 .notes-area,
