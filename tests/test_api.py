@@ -2,6 +2,7 @@
 
 import base64
 import datetime
+import re
 import time
 
 import pytest
@@ -1024,6 +1025,32 @@ def test_installable_app_assets_are_served(api):
     assert photo.headers["Content-Type"] == "image/jpeg"
     assert photo.body[:3] == b"\xff\xd8\xff", "not a JPEG"
     assert b"/img/car.jpg" in worker.body
+
+
+def test_the_light_backdrop_rule_survives_the_stylesheet(api):
+    """The photograph only shows if the rule that paints it still parses.
+
+    A comment above this rule once lost its closing `*/` while its credit line
+    was being rewritten, so the backdrop rule and the opening of the comment
+    below it were parsed as prose. The stylesheet still served, still parsed,
+    and the light theme quietly lost its background — invisible to a test that
+    only asks whether the image can be fetched. Stripping comments the way a
+    browser strips them leaves the rule standing, or the test fails.
+    """
+    css = api.get("/styles.css")
+    assert css.status == 200
+    assert css.headers["Content-Type"].startswith("text/css")
+    text = css.body.decode("utf-8")
+
+    stripped = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    assert "/*" not in stripped, "an unclosed comment swallows the rules below it"
+    assert stripped.count("{") == stripped.count("}"), "a stray brace is left in the sheet"
+
+    rule = stripped.split('[data-theme="light"] .ambient::after {', 1)
+    assert len(rule) == 2, "the light backdrop rule is not in the served stylesheet"
+    assert 'url("/img/car.jpg")' in rule[1].split("}", 1)[0]
+    # The halo is the next thing the same broken comment would have eaten.
+    assert '[data-theme="light"] .page h1' in stripped
 
 
 PNG = base64.b64decode(
